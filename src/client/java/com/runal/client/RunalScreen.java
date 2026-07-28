@@ -1045,13 +1045,30 @@ public class RunalScreen extends Screen {
                                 // COLUMN_WIDTH is narrow enough that long labels + long values collide.
                                 int labelMaxWidth = isToggle ? COLUMN_WIDTH - SUB_TEXT_LEFT_PADDING - 40 : valueX - SUB_TEXT_LEFT_PADDING - px - 10;
                                 String labelText = truncateToFitNVG(setting.getLabel(), labelMaxWidth, SETTING_TEXT_SIZE);
+                                // Draw the control background first. Enum/keybind text occupies
+                                // the chip itself, so drawing the chip after the text hid the value.
+                                nvg.add(() -> drawSettingControlNVG(setting, px, settingRowY, allowedHeight, subHovered));
                                 nvg.add(() -> {
                                     NVGRenderer.textLeft(labelText, px + SUB_TEXT_LEFT_PADDING, settingRowY, allowedHeight, SETTING_TEXT_SIZE, 0xFFFFFFFF);
-                                    if (!isToggle) {
+                                    if (isChip) {
+                                        float actualValueWidth = NVGRenderer.textWidth(valueText, SETTING_TEXT_SIZE);
+                                        float chipW = actualValueWidth + 10f;
+                                        float chipH = Math.min(15f, allowedHeight - 2f);
+                                        float chipX = px + COLUMN_WIDTH - 10f - chipW;
+                                        float chipY = settingRowY + (allowedHeight - chipH) / 2f;
+                                        NVGRenderer.textCentered(
+                                                valueText,
+                                                chipX,
+                                                chipY,
+                                                chipW,
+                                                chipH,
+                                                SETTING_TEXT_SIZE,
+                                                valueColor
+                                        );
+                                    } else if (!isToggle) {
                                         NVGRenderer.textLeft(valueText, valueX, settingRowY, allowedHeight, SETTING_TEXT_SIZE, valueColor);
                                     }
                                 });
-                                nvg.add(() -> drawSettingControlNVG(setting, px, settingRowY, allowedHeight, subHovered));
                                 if (setting instanceof SliderModuleSetting slider) {
                                     int sliderRowY = rowY;
                                     int sliderHeight = allowedHeight;
