@@ -12,6 +12,7 @@ val requiredJava: JavaVersion = JavaVersion.toVersion(sc.properties.get<String>(
 val is1214 = sc.current.version == "1.21.4" || sc.current.version == "1.21.11"
 val only1214 = sc.current.version == "1.21.4"
 val only262 = sc.current.version == "26.2"
+val usesNvgPip = sc.current.version == "26.1.2"
 sc.replacements {
     regex {
         direction.set(only262)
@@ -103,7 +104,7 @@ loom {
     // Only wired in for the versions that use the NanoVG ClickGUI (GlDevice/GpuDevice.backend
     // access widened for NVGPIPRenderer) - 1.21.4/1.21.11's Loom setup expects a differently
     // namespaced widener file and fails configuration entirely if this is set unconditionally.
-    if (!is1214) {
+    if (usesNvgPip) {
         accessWidenerPath = rootProject.file("src/main/resources/runal.accesswidener")
     }
 
@@ -164,7 +165,17 @@ tasks.withType<ProcessResources>().configureEach {
         "javaDepends" to sc.properties.get<String>("mod.java_depends")
     )
     inputs.properties(props)
-    filesMatching("fabric.mod.json") { expand(props) }
+    filesMatching("fabric.mod.json") {
+        expand(props)
+        if (!usesNvgPip) {
+            filter { line: String ->
+                if (line.contains("\"accessWidener\"")) "" else line
+            }
+        }
+    }
+    if (!usesNvgPip) {
+        exclude("runal.accesswidener")
+    }
 
     val mixinJava = sc.properties.get<String>("mod.java_level")
     inputs.property("mixinJava", mixinJava)
