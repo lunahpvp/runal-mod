@@ -61,7 +61,7 @@ Runal's modules are organized into four ClickGUI categories.
 
 1. Install the Fabric Loader for a supported Minecraft version.
 2. Install the matching version of **Fabric API**.
-3. Download the correct Runal `.jar` from the [latest release](https://github.com/lunahpvp2-tech/runal-mod/releases/latest).
+3. Download the correct Runal `.jar` from the [latest release](https://github.com/lunahpvp/runal-mod/releases/latest).
 4. Place the file in your `.minecraft/mods` folder.
 
 Runal currently provides builds for:
@@ -87,7 +87,7 @@ Runal is actively maintained. Join the Runal Discord for support and suggestions
     <img src="https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/social/discord-plural_vector.svg" alt="Join the Runal Discord" height="46">
   </a>
   &nbsp;
-  <a href="https://github.com/lunahpvp2-tech/runal-mod/issues">
+  <a href="https://github.com/lunahpvp/runal-mod/issues">
     <img src="https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/github_vector.svg" alt="Report an issue on GitHub" height="46">
   </a>
 </p>

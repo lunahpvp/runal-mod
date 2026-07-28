@@ -204,6 +204,17 @@ public class RunalScreen extends Screen {
         return Math.round(scale * 10f) / 10f;
     }
 
+    /**
+     * Converts the ClickGUI's physical-pixel scale into Minecraft GUI coordinates.
+     * Minecraft's renderer applies its configured GUI scale after this pose, so dividing
+     * by that scale keeps a 180px Runal column 180px wide on both OpenGL and Vulkan.
+     */
+    private float getPortableGuiScale() {
+        var window = Minecraft.getInstance().getWindow();
+        float minecraftGuiScale = window.getScreenWidth() / (float) Math.max(1, this.width);
+        return getStandardGuiScale() / Math.max(0.01f, minecraftGuiScale);
+    }
+
     private int scaledNvgMouseX() {
         return (int) (Minecraft.getInstance().mouseHandler.xpos() / getStandardGuiScale());
     }
@@ -864,6 +875,415 @@ public class RunalScreen extends Screen {
         drawResetButton(context, mouseX, mouseY);
     }
 
+    private void drawPortableCenteredText(
+            GuiGraphicsExtractor context,
+            String text,
+            int boxX,
+            int boxY,
+            int boxWidth,
+            int boxHeight,
+            int color,
+            int pixelHeight
+    ) {
+        int textWidth = PortableTextRenderer.width(text, pixelHeight);
+        int textHeight = PortableTextRenderer.height(text, pixelHeight);
+        int drawX = boxX + (boxWidth - textWidth) / 2;
+        int drawY = boxY + (boxHeight - textHeight) / 2;
+        PortableTextRenderer.draw(context, text, drawX, drawY, pixelHeight, color);
+    }
+
+    private void drawPortableLeftText(
+            GuiGraphicsExtractor context,
+            String text,
+            int x,
+            int boxY,
+            int boxHeight,
+            int color,
+            int pixelHeight
+    ) {
+        int textHeight = PortableTextRenderer.height(text, pixelHeight);
+        int drawY = boxY + (boxHeight - textHeight) / 2;
+        PortableTextRenderer.draw(context, text, x, drawY, pixelHeight, color);
+    }
+
+    private String truncatePortable(String text, int maxWidth, int pixelHeight) {
+        if (maxWidth <= 0) return "";
+        if (PortableTextRenderer.width(text, pixelHeight) <= maxWidth) return text;
+        String ellipsis = "...";
+        for (int length = text.length() - 1; length > 0; length--) {
+            String candidate = text.substring(0, length) + ellipsis;
+            if (PortableTextRenderer.width(candidate, pixelHeight) <= maxWidth) return candidate;
+        }
+        return ellipsis;
+    }
+
+    /**
+     * Backend-independent port of the NanoVG ClickGUI. This intentionally uses the same
+     * physical-pixel coordinate space, flat rows, sizing, colors, and animations as the
+     * OpenGL path, but records ordinary Minecraft GUI primitives so VulkanMod can render it.
+     */
+    private void renderContentPortable(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks) {
+        context.fillGradient(0, 0, this.width, this.height, COLOR_BACKDROP_TOP, COLOR_BACKDROP_BOTTOM);
+
+        int minecraftMouseX = mouseX;
+        int minecraftMouseY = mouseY;
+        mouseX = scaledNvgMouseX();
+        mouseY = scaledNvgMouseY();
+
+        long elapsed = System.currentTimeMillis() - openTimeMs;
+        float openProgress = Math.min(1f, elapsed / (float) OPEN_ANIM_DURATION_MS);
+        float openScale = 0.20f + 0.80f * easeOutCubic(openProgress);
+        float portableScale = getPortableGuiScale();
+        int viewportWidth = clickGuiViewportWidth();
+        int viewportHeight = clickGuiViewportHeight();
+
+        //? if 1.21.4 {
+        /*context.pose().pushPose();
+        context.pose().scale(portableScale, portableScale, 1f);
+        context.pose().translate(viewportWidth / 2f, viewportHeight / 2f, 0f);
+        context.pose().scale(openScale, openScale, 1f);
+        context.pose().translate(-viewportWidth / 2f, -viewportHeight / 2f, 0f);
+        *///?} else {
+        context.pose().pushMatrix();
+        context.pose().scale(portableScale, portableScale);
+        context.pose().translate(viewportWidth / 2f, viewportHeight / 2f);
+        context.pose().scale(openScale, openScale);
+        context.pose().translate(-viewportWidth / 2f, -viewportHeight / 2f);
+        //?}
+
+        String tooltipText = null;
+        int tooltipX = 0;
+        int tooltipY = 0;
+
+        for (Panel panel : panels) {
+            List<Module> visible = visibleModules(panel);
+            if (visible.isEmpty()) continue;
+
+            COLLAPSE_ANIM.put(panel.category, COLLAPSED_CATEGORIES.contains(panel.category) ? 0f : 1f);
+            boolean collapsed = COLLAPSED_CATEGORIES.contains(panel.category);
+            float categoryOpen = collapsed ? 0f : 1f;
+            int fullHeight = animatedPanelHeight(panel, visible);
+            int panelHeight = Math.min(fullHeight, panelMaxHeight(panel));
+            int maxScroll = Math.max(0, fullHeight - panelHeight);
+            panel.scroll = Math.max(0, Math.min(panel.scroll, maxScroll));
+
+            int shadowHeight = collapsed ? HEADER_HEIGHT + 10 : panelHeight;
+            context.fill(panel.x + 3, panel.y + 4, panel.x + COLUMN_WIDTH + 3, panel.y + shadowHeight + 4, 0x42000000);
+            context.fill(panel.x, panel.y, panel.x + COLUMN_WIDTH, panel.y + HEADER_HEIGHT, COLOR_GRAY26);
+            drawPortableCenteredText(
+                    context,
+                    panel.category,
+                    panel.x,
+                    panel.y,
+                    COLUMN_WIDTH,
+                    HEADER_HEIGHT,
+                    COLOR_HEADER_TEXT,
+                    22
+            );
+
+            boolean lastVisibleEnabled = !visible.isEmpty() && visible.get(visible.size() - 1).isEnabled();
+            boolean anyExpanded = visible.stream().anyMatch(EXPANDED::contains);
+            int capColor = (!anyExpanded && lastVisibleEnabled) ? accentColor() : COLOR_GRAY26;
+
+            if (categoryOpen <= 0.025f) {
+                context.fill(
+                        panel.x,
+                        panel.y + HEADER_HEIGHT,
+                        panel.x + COLUMN_WIDTH,
+                        panel.y + HEADER_HEIGHT + 10,
+                        capColor
+                );
+                continue;
+            }
+
+            int contentTop = panel.y + HEADER_HEIGHT;
+            int contentBottom = panel.y + panelHeight;
+            context.enableScissor(panel.x, contentTop, panel.x + COLUMN_WIDTH, contentBottom);
+
+            int rowY = contentTop - panel.scroll;
+            for (Module module : visible) {
+                boolean hovered = mouseY >= contentTop && mouseY <= contentBottom
+                        && mouseX >= panel.x + 4
+                        && mouseX <= panel.x + COLUMN_WIDTH - 4
+                        && mouseY >= rowY + 2
+                        && mouseY <= rowY + ROW_HEIGHT - 1;
+
+                TOGGLE_ANIM.put(module, module.isEnabled() ? 1f : 0f);
+                animate(HOVER_ANIM, module, hovered ? 1f : 0f, 0.22f);
+                animate(EXPAND_ANIM, module, EXPANDED.contains(module) ? 1f : 0f, 0.18f);
+
+                float toggle = module.isEnabled() ? 1f : 0f;
+                float hover = easeOutQuart(anim(HOVER_ANIM, module));
+                float expand = anim(EXPAND_ANIM, module);
+                int rowColor = brighten(module.isEnabled() ? accentColor() : COLOR_GRAY26, (int) (hover * 10f));
+
+                context.fill(panel.x, rowY, panel.x + COLUMN_WIDTH, rowY + ROW_HEIGHT, rowColor);
+                String moduleName = truncatePortable(module.getName(), COLUMN_WIDTH - 12, 15);
+                int textColor = mixColor(COLOR_TEXT, 0xFFFFFFFF, Math.max(toggle, hover * 0.45f));
+                drawPortableCenteredText(
+                        context,
+                        moduleName,
+                        panel.x,
+                        rowY,
+                        COLUMN_WIDTH,
+                        ROW_HEIGHT,
+                        textColor,
+                        15
+                );
+
+                if (hover > 0.97f && !module.getDescription().isEmpty()) {
+                    tooltipText = module.getDescription();
+                    tooltipX = panel.x + COLUMN_WIDTH + 10;
+                    tooltipY = rowY;
+                }
+
+                rowY += ROW_HEIGHT;
+                if (expand > 0.025f && !module.getSettings().isEmpty()) {
+                    List<ModuleSetting> settings = visibleSettings(module);
+                    int visibleHeight = (int) (totalSettingsHeight(settings) * expand);
+                    int subStart = rowY;
+                    int drawn = 0;
+
+                    for (ModuleSetting setting : settings) {
+                        if (drawn >= visibleHeight) break;
+                        int allowedHeight = Math.min(settingRowHeight(setting), visibleHeight - drawn);
+                        boolean subHovered = mouseY >= contentTop && mouseY <= contentBottom
+                                && mouseX >= panel.x + 7
+                                && mouseX <= panel.x + COLUMN_WIDTH - 5
+                                && mouseY >= rowY + 1
+                                && mouseY <= rowY + allowedHeight - 1;
+                        boolean listening = setting instanceof KeybindModuleSetting keybind && keybind.isListening();
+
+                        context.fill(panel.x, rowY, panel.x + COLUMN_WIDTH, rowY + allowedHeight, COLOR_GRAY26);
+                        if (subHovered) {
+                            context.fill(panel.x, rowY, panel.x + COLUMN_WIDTH, rowY + allowedHeight, 0x18FFFFFF);
+                            if (!setting.getDescription().isEmpty()) {
+                                tooltipText = setting.getDescription();
+                                tooltipX = panel.x + COLUMN_WIDTH + 10;
+                                tooltipY = rowY;
+                            }
+                        }
+
+                        if (allowedHeight >= 9) {
+                            int labelHeight = setting instanceof ColorModuleSetting ? PICKER_TOP_ROW : allowedHeight;
+                            boolean isToggle = setting instanceof ToggleModuleSetting;
+                            boolean isChip = setting instanceof EnumModuleSetting || setting instanceof KeybindModuleSetting;
+                            String valueText = isToggle || setting instanceof ColorModuleSetting || setting instanceof SettingGroup
+                                    ? ""
+                                    : setting.getDisplayValue();
+                            int valueWidth = PortableTextRenderer.width(valueText, 12);
+                            int valueX = panel.x + COLUMN_WIDTH - valueWidth - 12;
+                            int labelMaxWidth = isToggle
+                                    ? COLUMN_WIDTH - SUB_TEXT_LEFT_PADDING - 40
+                                    : valueX - SUB_TEXT_LEFT_PADDING - panel.x - 10;
+                            String labelText = truncatePortable(setting.getLabel(), labelMaxWidth, 12);
+
+                            drawSettingControlPortable(context, setting, panel.x, rowY, labelHeight);
+                            drawPortableLeftText(
+                                    context,
+                                    labelText,
+                                    panel.x + SUB_TEXT_LEFT_PADDING,
+                                    rowY,
+                                    labelHeight,
+                                    0xFFFFFFFF,
+                                    12
+                            );
+
+                            if (isChip) {
+                                int chipWidth = valueWidth + 10;
+                                int chipHeight = Math.min(15, allowedHeight - 2);
+                                int chipX = panel.x + COLUMN_WIDTH - 10 - chipWidth;
+                                int chipY = rowY + (allowedHeight - chipHeight) / 2;
+                                drawPortableCenteredText(
+                                        context,
+                                        valueText,
+                                        chipX,
+                                        chipY,
+                                        chipWidth,
+                                        chipHeight,
+                                        listening ? 0xFFFFD966 : 0xFFFFFFFF,
+                                        12
+                                );
+                            } else if (!valueText.isEmpty()) {
+                                boolean textEditing = setting instanceof TextModuleSetting textSetting && textSetting.isEditing();
+                                drawPortableLeftText(
+                                        context,
+                                        valueText,
+                                        valueX,
+                                        rowY,
+                                        allowedHeight,
+                                        listening || textEditing ? accentColor() : 0xFFFFFFFF,
+                                        12
+                                );
+                            }
+
+                            if (setting instanceof SliderModuleSetting slider) {
+                                drawSliderPortable(context, slider, panel.x, rowY, allowedHeight);
+                            } else if (setting instanceof ColorModuleSetting colorSetting && colorSetting.isExtended()) {
+                                int pickerY = rowY + PICKER_TOP_ROW + PICKER_GAP;
+                                drawColorPickerPortable(context, colorSetting, panel.x, pickerY, COLUMN_WIDTH);
+                            }
+                        }
+
+                        rowY += allowedHeight;
+                        drawn += allowedHeight;
+                    }
+
+                    rowY = subStart + visibleHeight;
+                }
+            }
+
+            context.disableScissor();
+            int capY = Math.min(rowY, contentBottom);
+            context.fill(panel.x, capY, panel.x + COLUMN_WIDTH, capY + 10, capColor);
+            if (maxScroll > 0) drawScrollbar(context, panel, panelHeight, fullHeight);
+        }
+
+        if (tooltipText != null) {
+            int tooltipWidth = PortableTextRenderer.width(tooltipText, 12) + 16;
+            int tooltipHeight = SUB_ROW_HEIGHT + 6;
+            int boxX = tooltipX;
+            if (boxX + tooltipWidth > viewportWidth) {
+                boxX = tooltipX - COLUMN_WIDTH - tooltipWidth - 20;
+            }
+            context.fill(boxX + 2, tooltipY + 3, boxX + tooltipWidth + 2, tooltipY + tooltipHeight + 3, 0x50000000);
+            drawRoundedRect(context, boxX, tooltipY, tooltipWidth, tooltipHeight, accentColor(), 3);
+            drawRoundedRect(context, boxX + 1, tooltipY + 1, tooltipWidth - 2, tooltipHeight - 2, COLOR_GRAY26, 2);
+            drawPortableCenteredText(
+                    context,
+                    tooltipText,
+                    boxX,
+                    tooltipY,
+                    tooltipWidth,
+                    tooltipHeight,
+                    0xFFFFFFFF,
+                    12
+            );
+        }
+
+        //? if 1.21.4 {
+        /*context.pose().popPose();
+        *///?} else {
+        context.pose().popMatrix();
+        //?}
+
+        drawSearchChrome(context, minecraftMouseX, minecraftMouseY);
+        drawResetButton(context, minecraftMouseX, minecraftMouseY);
+    }
+
+    private void drawSettingControlPortable(
+            GuiGraphicsExtractor context,
+            ModuleSetting setting,
+            int x,
+            int y,
+            int h
+    ) {
+        int controlY = y + 4;
+        if (setting instanceof ToggleModuleSetting toggle) {
+            boolean on = toggle.getValue();
+            int trackWidth = 20;
+            int trackHeight = Math.min(11, h - 4);
+            int trackX = x + COLUMN_WIDTH - 30;
+            int trackY = y + (h - trackHeight) / 2;
+            drawRoundedRect(context, trackX, trackY, trackWidth, trackHeight, on ? accentColor() : 0xFF2A2D34, trackHeight / 2);
+            animateSetting(TOGGLE_KNOB_ANIM, toggle, on ? 1f : 0f, 0.3f);
+            float knobT = animSetting(TOGGLE_KNOB_ANIM, toggle);
+            int knobSize = Math.max(4, trackHeight - 3);
+            int knobX = (int) lerp(trackX + 1, trackX + trackWidth - knobSize - 1, knobT);
+            drawRoundedRect(context, knobX, trackY + (trackHeight - knobSize) / 2, knobSize, knobSize, 0xFFFFFFFF, knobSize / 2);
+        } else if (setting instanceof ColorModuleSetting color) {
+            drawRoundedRect(context, x + COLUMN_WIDTH - 25, controlY - 1, 14, 10, COLOR_GRAY26, 2);
+            drawRoundedRect(context, x + COLUMN_WIDTH - 24, controlY, 12, 8, color.getColor(), 2);
+        } else if (setting instanceof SettingGroup group) {
+            drawPortableCenteredText(
+                    context,
+                    group.isExpanded() ? ">" : "v",
+                    x + COLUMN_WIDTH - 22,
+                    y,
+                    16,
+                    h,
+                    0xFFFFFFFF,
+                    12
+            );
+        } else if (setting instanceof EnumModuleSetting || setting instanceof KeybindModuleSetting) {
+            String value = setting.getDisplayValue();
+            int valueWidth = PortableTextRenderer.width(value, 12);
+            int chipWidth = valueWidth + 10;
+            int chipHeight = Math.min(15, h - 2);
+            int chipX = x + COLUMN_WIDTH - 10 - chipWidth;
+            int chipY = y + (h - chipHeight) / 2;
+            boolean listening = setting instanceof KeybindModuleSetting keybind && keybind.isListening();
+            drawRoundedRect(context, chipX, chipY, chipWidth, chipHeight, listening ? 0xFFFFD966 : accentColor(), 4);
+            drawRoundedRect(context, chipX + 1, chipY + 1, chipWidth - 2, chipHeight - 2, 0xFF2A2D34, 3);
+        }
+    }
+
+    private void drawSliderPortable(GuiGraphicsExtractor context, SliderModuleSetting slider, int x, int y, int h) {
+        int trackX = x + 62;
+        int trackY = y + h - 5;
+        int trackWidth = COLUMN_WIDTH - 80;
+        float value = Math.max(0f, Math.min(1f, slider.getNormalizedValue()));
+        int fillWidth = (int) (trackWidth * value);
+        drawRoundedRect(context, trackX, trackY, trackWidth, 3, 0xFF2A2D34, 2);
+        drawRoundedRect(context, trackX, trackY, fillWidth, 3, accentColor(), 2);
+        drawRoundedRect(context, trackX + fillWidth - 3, trackY - 2, 7, 7, 0xFFEDEDF2, 4);
+    }
+
+    private void drawColorPickerPortable(
+            GuiGraphicsExtractor context,
+            ColorModuleSetting colorSetting,
+            int x,
+            int y,
+            int w
+    ) {
+        float[] hsb = colorSetting.getHSB();
+        float[] square = colorPickerSquareBounds(x, y, w);
+        int squareX = (int) square[0];
+        int squareY = (int) square[1];
+        int squareW = (int) square[2];
+        int squareH = (int) square[3];
+
+        for (int px = 0; px < squareW; px += 2) {
+            float saturation = px / (float) Math.max(1, squareW - 1);
+            for (int py = 0; py < squareH; py += 2) {
+                float brightness = 1f - py / (float) Math.max(1, squareH - 1);
+                int rgb = java.awt.Color.HSBtoRGB(hsb[0], saturation, brightness);
+                context.fill(squareX + px, squareY + py, squareX + Math.min(squareW, px + 2), squareY + Math.min(squareH, py + 2), 0xFF000000 | (rgb & 0xFFFFFF));
+            }
+        }
+
+        int pointerX = squareX + (int) (hsb[1] * squareW);
+        int pointerY = squareY + (int) ((1f - hsb[2]) * squareH);
+        drawRoundedRect(context, pointerX - 3, pointerY - 3, 7, 7, 0xFFFFFFFF, 4);
+        drawRoundedRect(context, pointerX - 2, pointerY - 2, 5, 5, colorSetting.getColor(), 3);
+
+        float[] hue = colorPickerHueBounds(x, y, w);
+        int hueX = (int) hue[0];
+        int hueY = (int) hue[1];
+        int hueW = (int) hue[2];
+        int hueH = (int) hue[3];
+        for (int px = 0; px < hueW; px += 2) {
+            int rgb = java.awt.Color.HSBtoRGB(px / (float) Math.max(1, hueW - 1), 1f, 1f);
+            context.fill(hueX + px, hueY, hueX + Math.min(hueW, px + 2), hueY + hueH, 0xFF000000 | (rgb & 0xFFFFFF));
+        }
+        int huePointerX = hueX + (int) (hsb[0] * hueW);
+        context.fill(huePointerX - 1, hueY - 2, huePointerX + 2, hueY + hueH + 2, 0xFFFFFFFF);
+
+        int hexY = hueY + hueH + PICKER_GAP;
+        drawRoundedRect(context, squareX, hexY, squareW, PICKER_HEX_H, colorSetting.isHexEditing() ? accentColor() : 0xFF3A3C44, 3);
+        drawRoundedRect(context, squareX + 1, hexY + 1, squareW - 2, PICKER_HEX_H - 2, 0xFF2A2D34, 2);
+        drawPortableCenteredText(
+                context,
+                "#" + colorSetting.getHexInput(),
+                squareX,
+                hexY,
+                squareW,
+                PICKER_HEX_H,
+                colorSetting.isHexEditing() ? accentColor() : 0xFFFFFFFF,
+                12
+        );
+    }
+
     // NanoVG-based chrome. Layout/animation-state math is identical to renderContentLegacy
     // above; only the shape drawing backend changed (real anti-aliased vector shapes,
     // drop shadows and gradients instead of per-pixel rounded-rect approximation).
@@ -871,6 +1291,14 @@ public class RunalScreen extends Screen {
     // NVGPIPRenderer callback; text still goes through Minecraft's font renderer,
     // drawn immediately here (via `context`) so it lands on top of the vector layer.
     private void renderContentNVG(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks) {
+        //? if 26.1.2 {
+        // NanoVGGL3 requires Minecraft's OpenGL backend. VulkanMod replaces it with
+        // Vulkan, so draw the same compact GUI through Minecraft's portable primitives.
+        if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("vulkanmod")) {
+            renderContentPortable(context, mouseX, mouseY, deltaTicks);
+            return;
+        }
+        //?}
         //? if 26.2 {
         /*renderContentLegacy(context, mouseX, mouseY, deltaTicks);
         *///?}
@@ -1624,6 +2052,7 @@ public class RunalScreen extends Screen {
 
     @Override
     public void onClose() {
+        PortableTextRenderer.clear();
         ModuleConfig.save();
         super.onClose();
     }
