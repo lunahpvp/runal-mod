@@ -55,7 +55,7 @@ public class DiscordPresenceController {
     }
 
     private static void updatePendingText() {
-        pendingDetails = "Exploring the World";
+        pendingDetails = "Playing on ScepterRPG";
 
         if (BossTitleState.isFightingBoss()) {
             pendingState = "Fighting " + BossTitleState.lastBossName + " in Scepter";

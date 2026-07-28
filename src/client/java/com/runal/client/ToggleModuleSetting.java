@@ -8,6 +8,7 @@ public class ToggleModuleSetting implements ModuleSetting {
     private final BooleanSupplier getter;
     private final Consumer<Boolean> setter;
     private final boolean defaultValue;
+    private String description = "";
 
     public ToggleModuleSetting(String label, BooleanSupplier getter, Consumer<Boolean> setter) {
         this.label = label;
@@ -15,6 +16,14 @@ public class ToggleModuleSetting implements ModuleSetting {
         this.setter = setter;
         this.defaultValue = getter.getAsBoolean();
     }
+
+    public ToggleModuleSetting withDescription(String description) {
+        this.description = description;
+        return this;
+    }
+
+    @Override
+    public String getDescription() { return description; }
 
     public boolean getValue() {
         return getter.getAsBoolean();

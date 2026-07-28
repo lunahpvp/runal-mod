@@ -40,23 +40,25 @@ public class RunalScreen extends Screen {
     private static final Map<Module, Float> HOVER_ANIM = new HashMap<>();
     private static final Map<Module, Float> EXPAND_ANIM = new HashMap<>();
     private static final Map<String, Float> COLLAPSE_ANIM = new HashMap<>();
-    private static final Map<String, Float> SIDEBAR_HOVER_ANIM = new HashMap<>();
-
+    private static final Map<ModuleSetting, Float> TOGGLE_KNOB_ANIM = new HashMap<>();
     private static final String[] CATEGORY_ORDER = { "Combat", "Visual", "Tracking", "Misc" };
 
-    private static final int COLUMN_WIDTH = 124;
-    private static final int COLUMN_GAP = 10;
-    private static final int SIDEBAR_X = 10;
-    private static final int SIDEBAR_WIDTH = 86;
-    private static final int ROW_HEIGHT = 18;
-    private static final int SUB_ROW_HEIGHT = 16;
-    private static final int HEADER_HEIGHT = 20;
-    private static final int PANEL_RADIUS = 8;
+    // Runal's compact logical dimensions. Melinoe's independent resolution scale
+    // is applied to these; Minecraft's configurable GUI scale is not.
+    private static final int COLUMN_WIDTH = 180;
+    private static final int COLUMN_GAP = 20;
+    private static final int ROW_HEIGHT = 29;
+    private static final int SUB_ROW_HEIGHT = 22;
+    private static final int HEADER_HEIGHT = 32;
+    private static final int PANEL_RADIUS = 0;
     private static final int ROW_RADIUS = 6;
     private static final int PANEL_BOTTOM_MARGIN = 44;
     private static final int SCROLL_SPEED = 12;
 
     private static final float TEXT_SCALE = 0.78f;
+    private static final float HEADER_TEXT_SCALE = 1.15f;
+    private static final float SETTING_TEXT_SIZE = 12f;
+    private static final float MODULE_TEXT_SIZE = 15f;
     private static final float SUB_TEXT_SCALE = 0.66f;
 
     private static final int TEXT_LEFT_PADDING = 14;
@@ -74,19 +76,25 @@ public class RunalScreen extends Screen {
     private static final int COLOR_TEXT = 0xFFEDEDF2;
     private static final int COLOR_DIM_TEXT = 0xFFA7A8B2;
     private static final int COLOR_HEADER_TEXT = 0xFFFFFFFF;
-    private static final int COLOR_BACKDROP_TOP = 0xB0000000;
-    private static final int COLOR_BACKDROP_BOTTOM = 0xDF000000;
+    private static final int COLOR_BACKDROP_TOP = 0x60000000;
+    private static final int COLOR_BACKDROP_BOTTOM = 0x85000000;
     private static final int COLOR_ACCENT = 0xFF35D77A;
     private static final int COLOR_ACCENT_ROW = 0xF0183224;
     private static final int COLOR_SEARCH_BG = 0xE8111216;
+    /** Melinoe's exact ClickGUI.gray26 - flat panel/header/off-row fill for the NVG chrome. */
+    private static final int COLOR_GRAY26 = 0xFF1A1A1A;
 
-    private static final long OPEN_ANIM_DURATION_MS = 1L;
+    private static final long OPEN_ANIM_DURATION_MS = 480L;
     private long openTimeMs = 0L;
 
     private EditBox searchBox;
     private SliderModuleSetting draggingSlider;
     private int draggingSliderPanelX;
     private TextModuleSetting editingText;
+    private ColorModuleSetting draggingColor;
+    private int draggingColorPanelX;
+    private int draggingColorRowY;
+    private ColorModuleSetting editingColor;
 
     private static class Panel {
         final String category;
@@ -121,8 +129,8 @@ public class RunalScreen extends Screen {
             grouped.computeIfAbsent(module.getCategory(), k -> new ArrayList<>()).add(module);
         }
 
-        int startX = SIDEBAR_X + SIDEBAR_WIDTH + 16;
-        int startY = 28;
+        int startX = 10;
+        int startY = 10;
         int columnIndex = 0;
 
         for (String category : grouped.keySet()) {
@@ -183,6 +191,59 @@ public class RunalScreen extends Screen {
         return f * f * f + 1f;
     }
 
+    /**
+     * Melinoe's ClickGUI scale. It is intentionally independent from Minecraft's
+     * configurable GUI Scale option, so that option cannot inflate panel geometry.
+     */
+    private float getStandardGuiScale() {
+        var window = Minecraft.getInstance().getWindow();
+        float verticalScale = (window.getScreenHeight() / 1080f) / NVGRenderer.devicePixelRatio();
+        float horizontalScale = (window.getScreenWidth() / 1920f) / NVGRenderer.devicePixelRatio();
+        float scale = Math.max(verticalScale, horizontalScale);
+        scale = Math.max(1f, Math.min(3f, scale));
+        return Math.round(scale * 10f) / 10f;
+    }
+
+    private int scaledNvgMouseX() {
+        return (int) (Minecraft.getInstance().mouseHandler.xpos() / getStandardGuiScale());
+    }
+
+    private int scaledNvgMouseY() {
+        return (int) (Minecraft.getInstance().mouseHandler.ypos() / getStandardGuiScale());
+    }
+
+    private int clickGuiViewportWidth() {
+        //? if 26.1.2 {
+        return (int) (Minecraft.getInstance().getWindow().getScreenWidth() / getStandardGuiScale());
+        //?} else {
+        /*return this.width;
+        *///?}
+    }
+
+    private int clickGuiViewportHeight() {
+        //? if 26.1.2 {
+        return (int) (Minecraft.getInstance().getWindow().getScreenHeight() / getStandardGuiScale());
+        //?} else {
+        /*return this.height;
+        *///?}
+    }
+
+    private int interactionMouseX(double eventX) {
+        //? if 26.1.2 {
+        return scaledNvgMouseX();
+        //?} else {
+        /*return (int) eventX;
+        *///?}
+    }
+
+    private int interactionMouseY(double eventY) {
+        //? if 26.1.2 {
+        return scaledNvgMouseY();
+        //?} else {
+        /*return (int) eventY;
+        *///?}
+    }
+
     private float easeOutQuart(float t) {
         float f = 1f - t;
         return 1f - f * f * f * f;
@@ -207,6 +268,19 @@ public class RunalScreen extends Screen {
             return;
         }
         map.put(module, lerp(current, target, speed));
+    }
+
+    private float animSetting(Map<ModuleSetting, Float> map, ModuleSetting setting) {
+        return map.getOrDefault(setting, 0f);
+    }
+
+    private void animateSetting(Map<ModuleSetting, Float> map, ModuleSetting setting, float target, float speed) {
+        float current = animSetting(map, setting);
+        if (Math.abs(current - target) < 0.002f) {
+            map.put(setting, target);
+            return;
+        }
+        map.put(setting, lerp(current, target, speed));
     }
 
     private void animateCategory(Map<String, Float> map, String category, float target, float speed) {
@@ -417,51 +491,40 @@ public class RunalScreen extends Screen {
         //?}
     }
 
-    private int sidebarHeight() {
-        return 30 + panels.size() * 20 + 8;
+    /** Trims text with a trailing "..." if it would render wider than maxWidth. */
+    private String truncateToFit(String text, float maxWidth, float scale) {
+        if (maxWidth <= 0) return "";
+        if (font.width(styled(text)) * scale <= maxWidth) return text;
+        String ellipsis = "...";
+        for (int len = text.length() - 1; len > 0; len--) {
+            String candidate = text.substring(0, len) + ellipsis;
+            if (font.width(styled(candidate)) * scale <= maxWidth) return candidate;
+        }
+        return ellipsis;
     }
 
-    private void drawSidebar(GuiGraphicsExtractor context, int mouseX, int mouseY) {
-        int y = 28;
-        drawPanelChrome(context, SIDEBAR_X, y, SIDEBAR_WIDTH, sidebarHeight());
-        drawScaledCenteredText(context, "Runal", SIDEBAR_X, y + 4, SIDEBAR_WIDTH, HEADER_HEIGHT, COLOR_HEADER_TEXT, TEXT_SCALE);
-        context.fill(SIDEBAR_X + 12, y + 25, SIDEBAR_X + SIDEBAR_WIDTH - 12, y + 26, alpha(accentColor(), 0.55f));
-
-        int itemY = y + 31;
-        for (Panel panel : panels) {
-            boolean hovered = mouseX >= SIDEBAR_X + 5
-                    && mouseX <= SIDEBAR_X + SIDEBAR_WIDTH - 5
-                    && mouseY >= itemY
-                    && mouseY <= itemY + 17;
-            animateCategory(SIDEBAR_HOVER_ANIM, panel.category, hovered ? 1f : 0f, 0.24f);
-
-            boolean collapsed = COLLAPSED_CATEGORIES.contains(panel.category);
-            float hover = easeOutQuart(animCategory(SIDEBAR_HOVER_ANIM, panel.category));
-            int itemColor = mixColor(0x00111116, COLOR_ROW_HOVER, hover);
-            if (!collapsed) itemColor = mixColor(itemColor, accentRowColor(), 0.38f);
-
-            drawRoundedRect(context, SIDEBAR_X + 5, itemY, SIDEBAR_WIDTH - 10, 16, itemColor, ROW_RADIUS);
-            if (!collapsed) drawRoundedRect(context, SIDEBAR_X + 8, itemY + 4, 2, 8, alpha(accentColor(), 0.92f), 1);
-            drawScaledLeftText(context, panel.category, SIDEBAR_X + 14, itemY, 16, collapsed ? COLOR_DIM_TEXT : COLOR_TEXT, SUB_TEXT_SCALE);
-            drawScaledLeftText(context, collapsed ? "+" : "-", SIDEBAR_X + SIDEBAR_WIDTH - 15, itemY, 16, COLOR_DIM_TEXT, SUB_TEXT_SCALE);
-            itemY += 20;
-        }
+    /**
+     * NanoVG's font functions (nvgFontFaceId etc.) are only safe to call from inside the
+     * active deferred NVG frame (the NVGPIPRenderer callback) - calling them synchronously,
+     * like from this method during layout, segfaults the JVM (confirmed via crash log: a
+     * native access violation inside lwjgl_nanovg.dll from nvgFontFaceId). Layout math that
+     * needs a width *before* queuing the actual (correctly-deferred) NVG draw call has to
+     * estimate it some other way - vanilla font width scaled to the target NVG size is a
+     * close enough proxy, since both fonts are normal-proportioned sans-serif.
+     */
+    private float estimateNvgTextWidth(String text, float nvgSize) {
+        return font.width(styled(text)) * (nvgSize / 9f);
     }
 
-    private boolean clickSidebar(int mouseX, int mouseY) {
-        int itemY = 59;
-        for (Panel panel : panels) {
-            boolean inItem = mouseX >= SIDEBAR_X + 5
-                    && mouseX <= SIDEBAR_X + SIDEBAR_WIDTH - 5
-                    && mouseY >= itemY
-                    && mouseY <= itemY + 17;
-            if (inItem) {
-                toggleCategory(panel.category);
-                return true;
-            }
-            itemY += 20;
+    private String truncateToFitNVG(String text, float maxWidth, float size) {
+        if (maxWidth <= 0) return "";
+        if (estimateNvgTextWidth(text, size) <= maxWidth) return text;
+        String ellipsis = "...";
+        for (int len = text.length() - 1; len > 0; len--) {
+            String candidate = text.substring(0, len) + ellipsis;
+            if (estimateNvgTextWidth(candidate, size) <= maxWidth) return candidate;
         }
-        return false;
+        return ellipsis;
     }
 
     private void toggleCategory(String category) {
@@ -503,14 +566,23 @@ public class RunalScreen extends Screen {
             result.add(setting);
             if (setting instanceof SettingGroup group && group.isExpanded()) {
                 addVisibleSettings(result, group.getSettings());
-            } else if (setting instanceof ColorModuleSetting color && color.isEditing()) {
-                addVisibleSettings(result, color.getChannelSettings());
             }
         }
     }
 
+    // Layout of the expanded HSB color picker (top label/swatch row, then square, hue strip,
+    // hex box below it) - shared by rendering and click hit-testing so they can never drift.
+    private static final int PICKER_TOP_ROW = SUB_ROW_HEIGHT;
+    private static final int PICKER_GAP = 4;
+    private static final int PICKER_SQUARE_H = 60;
+    private static final int PICKER_HUE_H = 10;
+    private static final int PICKER_HEX_H = 18;
+    private static final int PICKER_BOTTOM_MARGIN = 6;
+    private static final int PICKER_EXTENDED_HEIGHT = PICKER_TOP_ROW + PICKER_GAP + PICKER_SQUARE_H
+            + PICKER_GAP + PICKER_HUE_H + PICKER_GAP + PICKER_HEX_H + PICKER_BOTTOM_MARGIN;
+
     private int settingRowHeight(ModuleSetting setting) {
-        if (setting instanceof ColorModuleSetting) return SUB_ROW_HEIGHT * 2;
+        if (setting instanceof ColorModuleSetting color) return color.isExtended() ? PICKER_EXTENDED_HEIGHT : SUB_ROW_HEIGHT;
         if (setting instanceof SliderModuleSetting) return SUB_ROW_HEIGHT + 6;
         return SUB_ROW_HEIGHT;
     }
@@ -538,7 +610,10 @@ public class RunalScreen extends Screen {
     }
 
     private int panelMaxHeight(Panel panel) {
-        return Math.max(HEADER_HEIGHT + ROW_HEIGHT + SUB_ROW_HEIGHT, this.height - panel.y - PANEL_BOTTOM_MARGIN);
+        return Math.max(
+                HEADER_HEIGHT + ROW_HEIGHT + SUB_ROW_HEIGHT,
+                clickGuiViewportHeight() - panel.y - PANEL_BOTTOM_MARGIN
+        );
     }
 
     private void drawScrollbar(GuiGraphicsExtractor context, Panel panel, int panelHeight, int fullHeight) {
@@ -592,7 +667,7 @@ public class RunalScreen extends Screen {
 
         for (Module module : visible) {
             h += (int) (ROW_HEIGHT * categoryOpen);
-            float expand = (EXPANDED.contains(module) ? 1f : 0f) * categoryOpen;
+            float expand = anim(EXPAND_ANIM, module) * categoryOpen;
             if (!module.getSettings().isEmpty()) h += (int) (totalSettingsHeight(visibleSettings(module)) * expand);
         }
 
@@ -605,23 +680,62 @@ public class RunalScreen extends Screen {
         slider.setNormalizedValue((mouseX - trackX) / (float) trackW);
     }
 
+    /** rowY here is the setting's own row start, matching settingRowY used during rendering. */
+    private void handleColorPickerClick(ColorModuleSetting colorSetting, int panelX, int rowY, int mouseX, int mouseY) {
+        if (!colorSetting.isExtended()) {
+            colorSetting.onClick();
+            return;
+        }
+
+        int localY = mouseY - rowY;
+        if (localY < PICKER_TOP_ROW) {
+            colorSetting.onClick(); // clicked the label/swatch row again - collapse
+            return;
+        }
+
+        int pickerY = rowY + PICKER_TOP_ROW + PICKER_GAP;
+        float[] square = colorPickerSquareBounds(panelX, pickerY, COLUMN_WIDTH);
+        float[] hue = colorPickerHueBounds(panelX, pickerY, COLUMN_WIDTH);
+        float hexY = hue[1] + hue[3] + PICKER_GAP;
+
+        if (mouseX >= square[0] && mouseX <= square[0] + square[2] && mouseY >= square[1] && mouseY <= square[1] + square[3]) {
+            colorSetting.setDragSection(0);
+            draggingColor = colorSetting;
+            draggingColorPanelX = panelX;
+            draggingColorRowY = rowY;
+            updateColorFromSquareDrag(colorSetting, square, mouseX, mouseY);
+        } else if (mouseX >= hue[0] && mouseX <= hue[0] + hue[2] && mouseY >= hue[1] - 4 && mouseY <= hue[1] + hue[3] + 4) {
+            colorSetting.setDragSection(1);
+            draggingColor = colorSetting;
+            draggingColorPanelX = panelX;
+            draggingColorRowY = rowY;
+            updateColorFromHueDrag(colorSetting, hue, mouseX);
+        } else if (mouseY >= hexY && mouseY <= hexY + PICKER_HEX_H) {
+            colorSetting.startHexEditing();
+            editingColor = colorSetting;
+        }
+    }
+
     //? if 1.21.4 || 1.21.11 {
     /*@Override
     public void render(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks) {
-        renderContent(context, mouseX, mouseY, deltaTicks);
+        renderContentLegacy(context, mouseX, mouseY, deltaTicks);
         super.render(context, mouseX, mouseY, deltaTicks);
     }
     *///?} else {
     @Override
     public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks) {
-        renderContent(context, mouseX, mouseY, deltaTicks);
+        renderContentNVG(context, mouseX, mouseY, deltaTicks);
         super.extractRenderState(context, mouseX, mouseY, deltaTicks);
     }
     //?}
 
-    private void renderContent(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks) {
+    // Both renderContentLegacy and renderContentNVG are compiled for every Stonecutter target
+    // (Stonecutter's //? preprocessor doesn't compose when a conditional block is nested inside
+    // another one's commented-out branch), but only one of them is ever called per version - see
+    // the render()/extractRenderState() dispatch above.
+    private void renderContentLegacy(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks) {
         context.fillGradient(0, 0, this.width, this.height, COLOR_BACKDROP_TOP, COLOR_BACKDROP_BOTTOM);
-        drawSidebar(context, mouseX, mouseY);
 
         long elapsed = System.currentTimeMillis() - openTimeMs;
         float openProgress = Math.min(1f, elapsed / (float) OPEN_ANIM_DURATION_MS);
@@ -750,23 +864,479 @@ public class RunalScreen extends Screen {
         drawResetButton(context, mouseX, mouseY);
     }
 
+    // NanoVG-based chrome. Layout/animation-state math is identical to renderContentLegacy
+    // above; only the shape drawing backend changed (real anti-aliased vector shapes,
+    // drop shadows and gradients instead of per-pixel rounded-rect approximation).
+    // Vector chrome is recorded into `nvg` and executed later, inside the deferred
+    // NVGPIPRenderer callback; text still goes through Minecraft's font renderer,
+    // drawn immediately here (via `context`) so it lands on top of the vector layer.
+    private void renderContentNVG(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks) {
+        //? if 26.2 {
+        /*renderContentLegacy(context, mouseX, mouseY, deltaTicks);
+        *///?}
+        //? if 1.21.4 || 1.21.11 || 26.1.2 {
+        context.fillGradient(0, 0, this.width, this.height, COLOR_BACKDROP_TOP, COLOR_BACKDROP_BOTTOM);
+        if (!NVGRenderer.hasDrawableSize()) return;
+
+        int minecraftMouseX = mouseX;
+        int minecraftMouseY = mouseY;
+
+        // Melinoe does not use Screen's GUI-scaled mouse arguments. Its panels live in
+        // the independent ClickGUI coordinate space, so use the raw cursor divided by
+        // that same scale for rendering, hovering, dragging, and hit testing.
+        mouseX = scaledNvgMouseX();
+        mouseY = scaledNvgMouseY();
+
+        List<Runnable> nvg = new ArrayList<>();
+
+        long elapsed = System.currentTimeMillis() - openTimeMs;
+        float openProgress = Math.min(1f, elapsed / (float) OPEN_ANIM_DURATION_MS);
+        float easedOpen = easeOutCubic(openProgress);
+        float scale = 0.20f + 0.80f * easedOpen;
+
+        //? if 1.21.4 {
+        /*context.pose().pushPose();
+        context.pose().translate(this.width / 2f, this.height / 2f, 0f);
+        context.pose().scale(scale, scale, 1f);
+        context.pose().translate(-this.width / 2f, -this.height / 2f, 0f);
+        *///?} else {
+        context.pose().pushMatrix();
+        context.pose().translate(this.width / 2f, this.height / 2f);
+        context.pose().scale(scale, scale);
+        context.pose().translate(-this.width / 2f, -this.height / 2f);
+        //?}
+
+        String tooltipText = null;
+        int tooltipX = 0, tooltipY = 0;
+
+        for (Panel panel : panels) {
+            List<Module> visible = visibleModules(panel);
+            if (visible.isEmpty()) continue;
+
+            COLLAPSE_ANIM.put(panel.category, COLLAPSED_CATEGORIES.contains(panel.category) ? 0f : 1f);
+            boolean collapsed = COLLAPSED_CATEGORIES.contains(panel.category);
+            float categoryOpen = COLLAPSED_CATEGORIES.contains(panel.category) ? 0f : 1f;
+            int fullHeight = animatedPanelHeight(panel, visible);
+            int panelHeight = Math.min(fullHeight, panelMaxHeight(panel));
+            int maxScroll = Math.max(0, fullHeight - panelHeight);
+            panel.scroll = Math.max(0, Math.min(panel.scroll, maxScroll));
+
+            int px = panel.x, py = panel.y, ph = panelHeight;
+            int shadowHeight = collapsed ? HEADER_HEIGHT + 10 : ph;
+            nvg.add(() -> drawPanelShadowNVG(px, py, COLUMN_WIDTH, shadowHeight));
+            nvg.add(() -> drawPanelHeaderCapNVG(px, py, COLUMN_WIDTH, HEADER_HEIGHT));
+            String categoryName = panel.category;
+            // Real vector text via NVG - no bitmap-atlas rescaling, so it stays crisp at any
+            // size instead of the uneven stroke-thickness artifact the old scaled bitmap font had.
+            nvg.add(() -> NVGRenderer.textCentered(categoryName, px, py, COLUMN_WIDTH, HEADER_HEIGHT, 22f, COLOR_HEADER_TEXT));
+
+            boolean lastVisibleEnabled = !visible.isEmpty() && visible.get(visible.size() - 1).isEnabled();
+            // If anything in this panel is expanded, its settings (transparent, showing the
+            // panel's own gray26) may be what's actually sitting right above the cap - not
+            // necessarily the last module in the list - so an accent-colored cap could mismatch
+            // what's directly above it. Only tint the cap when the panel is a plain flat list.
+            boolean anyExpanded = visible.stream().anyMatch(EXPANDED::contains);
+            int capColor = (!anyExpanded && lastVisibleEnabled) ? accentColor() : COLOR_GRAY26;
+
+            if (categoryOpen <= 0.025f) {
+                int capY = py + HEADER_HEIGHT;
+                nvg.add(() -> drawPanelBottomCapNVG(px, capY, COLUMN_WIDTH, 10, capColor));
+                continue;
+            }
+
+            int contentTop = panel.y + HEADER_HEIGHT;
+            int contentBottom = panel.y + panelHeight;
+            nvg.add(() -> NVGRenderer.pushScissor(px, contentTop, COLUMN_WIDTH, contentBottom - contentTop));
+
+            int rowY = contentTop - panel.scroll;
+            for (Module module : visible) {
+                boolean hovered = mouseY >= contentTop && mouseY <= contentBottom
+                        && mouseX >= panel.x + 4
+                        && mouseX <= panel.x + COLUMN_WIDTH - 4
+                        && mouseY >= rowY + 2
+                        && mouseY <= rowY + ROW_HEIGHT - 1;
+
+                TOGGLE_ANIM.put(module, module.isEnabled() ? 1f : 0f);
+                animate(HOVER_ANIM, module, hovered ? 1f : 0f, 0.22f);
+                // Was previously just written and never read back, so settings popped open
+                // instantly - actually reading the lerped value here is what makes it slide,
+                // matching Melinoe's ModuleButton.kt EaseInOutAnimation on extendAnim.
+                animate(EXPAND_ANIM, module, EXPANDED.contains(module) ? 1f : 0f, 0.18f);
+
+                float toggle = module.isEnabled() ? 1f : 0f;
+                float hover = easeOutQuart(anim(HOVER_ANIM, module));
+                // No easeOutQuart wrapper here (unlike hover) - animate()'s own lerp convergence
+                // already decelerates near its target in both directions. Stacking easeOutQuart
+                // on top biased heavily toward "already at 1" while opening (looked instant) and
+                // "still at 1" while closing (looked like nothing happened, then a sudden snap).
+                float expand = anim(EXPAND_ANIM, module);
+                // Flat fill matching Melinoe's ModuleButton.kt: solid accent when on, solid
+                // gray26 when off, with only a subtle brighten on hover - no gradient/blend.
+                int rowColor = brighten(module.isEnabled() ? accentColor() : COLOR_GRAY26, (int) (hover * 10f));
+
+                // Melinoe shows a description tooltip beside a module/setting once hover has
+                // been sustained long enough (HoverHandler reaching 100%) - HOVER_ANIM converges
+                // toward 1 the same way, so reusing it gives the same "wait a beat" behavior.
+                if (hover > 0.97f && !module.getDescription().isEmpty()) {
+                    tooltipText = module.getDescription();
+                    tooltipX = panel.x + COLUMN_WIDTH + 10;
+                    tooltipY = rowY;
+                }
+
+                int rowYCapture = rowY;
+                int rowColorCapture = rowColor;
+                nvg.add(() -> drawModuleRowNVG(px, rowYCapture, COLUMN_WIDTH, ROW_HEIGHT, rowColorCapture));
+                // Melinoe's 18f module-name size assumes its 240px-wide panel - Runal's is 124px,
+                // so copying that size verbatim overflowed/clipped long names ("Accessory Cooldown"
+                // etc). Sized to actually fit the column, with truncation as a hard safety net.
+                String moduleName = truncateToFitNVG(module.getName(), COLUMN_WIDTH - 12, MODULE_TEXT_SIZE);
+                int textColor = mixColor(COLOR_TEXT, 0xFFFFFFFF, Math.max(toggle, hover * 0.45f));
+                nvg.add(() -> NVGRenderer.textCentered(moduleName, px, rowYCapture, COLUMN_WIDTH, ROW_HEIGHT, MODULE_TEXT_SIZE, textColor));
+
+                rowY += ROW_HEIGHT;
+                if (expand > 0.025f && !module.getSettings().isEmpty()) {
+                    List<ModuleSetting> settings = visibleSettings(module);
+                    int visibleHeight = (int) (totalSettingsHeight(settings) * expand);
+                    int subStart = rowY;
+                    int drawn = 0;
+
+                    for (ModuleSetting setting : settings) {
+                        if (drawn >= visibleHeight) break;
+                        int allowedHeight = Math.min(settingRowHeight(setting), visibleHeight - drawn);
+                        boolean subHovered = mouseY >= contentTop && mouseY <= contentBottom
+                                && mouseX >= panel.x + 7
+                                && mouseX <= panel.x + COLUMN_WIDTH - 5
+                                && mouseY >= rowY + 1
+                                && mouseY <= rowY + allowedHeight - 1;
+                        boolean listening = setting instanceof KeybindModuleSetting keybind && keybind.isListening();
+
+                        if (subHovered && !setting.getDescription().isEmpty()) {
+                            tooltipText = setting.getDescription();
+                            tooltipX = px + COLUMN_WIDTH + 10;
+                            tooltipY = rowY;
+                        }
+
+                        if (allowedHeight >= 9) {
+                            int settingRowY = rowY;
+                            if (setting instanceof ColorModuleSetting colorSetting) {
+                                // No hex readout on the collapsed row - matches Melinoe's ColorSetting.kt,
+                                // which only shows label + swatch until the picker itself is opened.
+                                nvg.add(() -> NVGRenderer.textLeft(colorSetting.getLabel(), px + SUB_TEXT_LEFT_PADDING, settingRowY, PICKER_TOP_ROW, SETTING_TEXT_SIZE, 0xFFFFFFFF));
+                                nvg.add(() -> drawSettingControlNVG(colorSetting, px, settingRowY, PICKER_TOP_ROW, subHovered));
+                                if (colorSetting.isExtended()) {
+                                    int pickerY = settingRowY + PICKER_TOP_ROW + PICKER_GAP;
+                                    nvg.add(() -> drawColorPickerNVG(colorSetting, px, pickerY, COLUMN_WIDTH));
+                                    nvg.add(() -> drawColorPickerHexText(colorSetting, px, pickerY, COLUMN_WIDTH));
+                                }
+                            } else {
+                                // Toggles show state via the switch itself, not text - matches
+                                // Melinoe's BooleanSetting.kt, which never draws "On"/"Off".
+                                boolean isToggle = setting instanceof ToggleModuleSetting;
+                                // Enum/Keybind values sit centered inside the chip drawn by
+                                // drawSettingControlNVG, in pure white - matches Melinoe's
+                                // SelectorSetting.kt/KeybindSetting.kt exactly.
+                                boolean isChip = setting instanceof EnumModuleSetting || setting instanceof KeybindModuleSetting;
+                                String valueText = isToggle ? "" : setting.getDisplayValue();
+                                int valueWidth = (int) estimateNvgTextWidth(valueText, SETTING_TEXT_SIZE);
+                                boolean textEditing = setting instanceof TextModuleSetting textSetting && textSetting.isEditing();
+                                int valueColor = isChip ? (listening ? 0xFFFFD966 : 0xFFFFFFFF) : (listening || textEditing ? accentColor() : 0xFFFFFFFF);
+                                int valueX = isChip ? px + COLUMN_WIDTH - valueWidth - 15 : px + COLUMN_WIDTH - valueWidth - 12;
+                                // Truncate the label if it would otherwise run under the value/chip -
+                                // COLUMN_WIDTH is narrow enough that long labels + long values collide.
+                                int labelMaxWidth = isToggle ? COLUMN_WIDTH - SUB_TEXT_LEFT_PADDING - 40 : valueX - SUB_TEXT_LEFT_PADDING - px - 10;
+                                String labelText = truncateToFitNVG(setting.getLabel(), labelMaxWidth, SETTING_TEXT_SIZE);
+                                nvg.add(() -> {
+                                    NVGRenderer.textLeft(labelText, px + SUB_TEXT_LEFT_PADDING, settingRowY, allowedHeight, SETTING_TEXT_SIZE, 0xFFFFFFFF);
+                                    if (!isToggle) {
+                                        NVGRenderer.textLeft(valueText, valueX, settingRowY, allowedHeight, SETTING_TEXT_SIZE, valueColor);
+                                    }
+                                });
+                                nvg.add(() -> drawSettingControlNVG(setting, px, settingRowY, allowedHeight, subHovered));
+                                if (setting instanceof SliderModuleSetting slider) {
+                                    int sliderRowY = rowY;
+                                    int sliderHeight = allowedHeight;
+                                    nvg.add(() -> drawSliderNVG(slider, px, sliderRowY, sliderHeight));
+                                }
+                            }
+                        }
+
+                        rowY += allowedHeight;
+                        drawn += allowedHeight;
+                    }
+
+                    rowY = subStart + visibleHeight;
+                }
+            }
+
+            nvg.add(NVGRenderer::popScissor);
+            // Use the actual accumulated row position, not panelHeight - animatedPanelHeight()
+            // still carries +5/+4 padding left over from the old inset row style, which would
+            // otherwise leave a gap between the last row and this cap.
+            int capY = Math.min(rowY, contentBottom);
+            nvg.add(() -> drawPanelBottomCapNVG(px, capY, COLUMN_WIDTH, 10, capColor));
+            if (maxScroll > 0) {
+                int fh = fullHeight;
+                nvg.add(() -> drawScrollbarNVG(panel, ph, fh));
+            }
+        }
+
+        // Built here (coordinates already known) but drawn in a separate, later PiP pass below -
+        // queuing it into the same `nvg` list as the panels wasn't enough to guarantee it landed
+        // on top of *other* panels next to the one it's for.
+        Runnable tooltipDraw = null;
+        if (tooltipText != null) {
+            String finalTooltip = tooltipText;
+            int estWidth = (int) estimateNvgTextWidth(finalTooltip, SETTING_TEXT_SIZE) + 16;
+            int tooltipH = SUB_ROW_HEIGHT + 6;
+            int boxX = tooltipX;
+            if (boxX + estWidth > clickGuiViewportWidth()) {
+                boxX = tooltipX - COLUMN_WIDTH - estWidth - 20;
+            }
+            int finalBoxX = boxX;
+            int finalTooltipY = tooltipY;
+            tooltipDraw = () -> {
+                NVGRenderer.dropShadow(finalBoxX, finalTooltipY, estWidth, tooltipH, 8f, 1f, 3f);
+                NVGRenderer.rect(finalBoxX, finalTooltipY, estWidth, tooltipH, COLOR_GRAY26, 3f);
+                NVGRenderer.hollowRect(finalBoxX, finalTooltipY, estWidth, tooltipH, 1f, accentColor(), 3f);
+                NVGRenderer.textCentered(finalTooltip, finalBoxX, finalTooltipY, estWidth, tooltipH, SETTING_TEXT_SIZE, 0xFFFFFFFF);
+            };
+        }
+        Runnable finalTooltipDraw = tooltipDraw;
+
+        //? if 1.21.4 {
+        /*context.pose().popPose();
+        *///?} else {
+        context.pose().popMatrix();
+        //?}
+
+        // Copy Melinoe's independent resolution scale exactly. Minecraft's GUI Scale
+        // may resize vanilla widgets/text, but it must never inflate these panel boxes.
+        float guiScale = getStandardGuiScale();
+        int screenW = this.width;
+        int screenH = this.height;
+        NVGPIPRenderer.draw(context, 0, 0, context.guiWidth(), context.guiHeight(), () -> {
+            NVGRenderer.scale(guiScale, guiScale);
+            NVGRenderer.push();
+            NVGRenderer.translate(screenW / 2f, screenH / 2f);
+            NVGRenderer.scale(scale, scale);
+            NVGRenderer.translate(-screenW / 2f, -screenH / 2f);
+            for (Runnable r : nvg) r.run();
+            NVGRenderer.pop();
+        });
+
+        // These two controls are still vanilla GUI elements, so they intentionally
+        // keep Minecraft's own GUI-scaled coordinates.
+        drawSearchChrome(context, minecraftMouseX, minecraftMouseY);
+        drawResetButton(context, minecraftMouseX, minecraftMouseY);
+
+        // Separate, later PiP call: NVGPIPRenderer.draw(...) calls composite in the order
+        // they're issued, so a second call made strictly after the panels' call is guaranteed
+        // to land on top of all of it, including neighboring panels the tooltip overlaps.
+        if (finalTooltipDraw != null) {
+            NVGPIPRenderer.draw(context, 0, 0, context.guiWidth(), context.guiHeight(), () -> {
+                NVGRenderer.scale(guiScale, guiScale);
+                finalTooltipDraw.run();
+            });
+        }
+        //?}
+    }
+
+    /** Header cap: rounded top corners only, flat fill - matches Melinoe's Panel.kt exactly. */
+    private void drawPanelHeaderCapNVG(int x, int y, int w, int h) {
+        NVGRenderer.halfRoundedRect(x, y, w, h, COLOR_GRAY26, PANEL_RADIUS, true);
+    }
+
+    /** Bottom cap: rounded bottom corners only, colored by whether the last module is on. */
+    private void drawPanelBottomCapNVG(int x, int y, int w, int h, int color) {
+        NVGRenderer.halfRoundedRect(x, y, w, h, color, PANEL_RADIUS, false);
+    }
+
+    private void drawPanelShadowNVG(int x, int y, int w, int h) {
+        NVGRenderer.dropShadow(x, y, w, h, 10f, 3f, PANEL_RADIUS);
+    }
+
+    /** Flat, seamless module row - no radius, no border, no glow. Matches ModuleButton.kt. */
+    private void drawModuleRowNVG(int x, int y, int w, int h, int color) {
+        NVGRenderer.rect(x, y, w, h, color);
+    }
+
+    /** Toggle/color/group controls as flat square vector shapes - no radius. */
+    private void drawSettingControlNVG(ModuleSetting setting, int x, int y, int h, boolean hovered) {
+        int controlY = y + 4;
+
+        if (setting instanceof ToggleModuleSetting toggle) {
+            boolean on = toggle.getValue();
+            int bg = on ? accentColor() : 0xFF2A2D34;
+            // Sized to fit inside a row (h is as small as SUB_ROW_HEIGHT=16) so adjacent
+            // toggles never overflow into each other - the old fixed 34x20 track was taller
+            // than the row itself and visibly bled into neighboring rows.
+            float trackW = 20f, trackH = Math.min(11f, h - 4f);
+            float trackX = x + COLUMN_WIDTH - 30;
+            float trackY = y + (h - trackH) / 2f;
+            NVGRenderer.rect(trackX, trackY, trackW, trackH, bg, trackH / 2f);
+            float knobR = trackH / 2f - 1.5f;
+            // Knob slides between off/on positions instead of snapping, matching Melinoe's
+            // BooleanSetting.kt (LinearAnimation over the knob's x position).
+            animateSetting(TOGGLE_KNOB_ANIM, toggle, on ? 1f : 0f, 0.3f);
+            float knobT = animSetting(TOGGLE_KNOB_ANIM, toggle);
+            float knobX = lerp(trackX + knobR, trackX + trackW - knobR, knobT);
+            NVGRenderer.circle(knobX, trackY + trackH / 2f, knobR, 0xFFFFFFFF);
+        } else if (setting instanceof ColorModuleSetting color) {
+            NVGRenderer.rect(x + COLUMN_WIDTH - 25, controlY - 1, 14, 10, COLOR_GRAY26, 2f);
+            NVGRenderer.rect(x + COLUMN_WIDTH - 24, controlY, 12, 8, color.getColor(), 1.5f);
+        } else if (setting instanceof SettingGroup group) {
+            // Down when collapsed, sideways (rotated 90 degrees) when expanded - matches
+            // Melinoe's DropdownSetting.kt chevron rotation exactly.
+            drawChevronNVG(x + COLUMN_WIDTH - 16, y + h / 2f, 5f, group.isExpanded(), 0xFFFFFFFF);
+        } else if (setting instanceof EnumModuleSetting || setting instanceof KeybindModuleSetting) {
+            // Bordered chip matching Melinoe's SelectorSetting.kt/KeybindSetting.kt: gray38 fill,
+            // accent-colored hollow outline, pure white text (drawn separately via overlay).
+            // Must measure with the SAME renderer/size the text itself draws with (NVG at
+            // SETTING_TEXT_SIZE) - measuring via the old vanilla font gave a mismatched width,
+            // which is why the text looked off-center inside the chip.
+            String value = setting.getDisplayValue();
+            int valueWidth = (int) NVGRenderer.textWidth(value, SETTING_TEXT_SIZE);
+            float chipW = valueWidth + 10f;
+            float chipH = Math.min(15f, h - 2f);
+            float chipX = x + COLUMN_WIDTH - 10 - chipW;
+            float chipY = y + (h - chipH) / 2f;
+            boolean listening = setting instanceof KeybindModuleSetting keybind && keybind.isListening();
+            NVGRenderer.rect(chipX, chipY, chipW, chipH, 0xFF2A2D34, 4f);
+            NVGRenderer.hollowRect(chipX, chipY, chipW, chipH, 1.3f, listening ? 0xFFFFD966 : accentColor(), 4f);
+        }
+    }
+
+    /** Chevron pointing down (collapsed) or sideways (expanded) - replaces the old +/- text glyph. */
+    private void drawChevronNVG(float centerX, float centerY, float armLength, boolean expanded, int color) {
+        if (expanded) {
+            // Points right: apex at (centerX + armLength, centerY)
+            NVGRenderer.line(centerX - armLength * 0.4f, centerY - armLength, centerX + armLength * 0.4f, centerY, 1.6f, color);
+            NVGRenderer.line(centerX + armLength * 0.4f, centerY, centerX - armLength * 0.4f, centerY + armLength, 1.6f, color);
+        } else {
+            // Points down: apex at (centerX, centerY + armLength)
+            NVGRenderer.line(centerX - armLength, centerY - armLength * 0.4f, centerX, centerY + armLength * 0.4f, 1.6f, color);
+            NVGRenderer.line(centerX, centerY + armLength * 0.4f, centerX + armLength, centerY - armLength * 0.4f, 1.6f, color);
+        }
+    }
+
+    /** Bounds of the picker's saturation/brightness square, in the same space used to draw it. */
+    private float[] colorPickerSquareBounds(int x, int y, int w) {
+        int margin = 8;
+        return new float[]{x + margin, y, w - margin * 2f, PICKER_SQUARE_H};
+    }
+
+    private float[] colorPickerHueBounds(int x, int y, int w) {
+        float[] square = colorPickerSquareBounds(x, y, w);
+        return new float[]{square[0], square[1] + square[3] + PICKER_GAP, square[2], PICKER_HUE_H};
+    }
+
+    /** Melinoe-style HSB color picker: draggable saturation/brightness square + hue strip. */
+    private void drawColorPickerNVG(ColorModuleSetting colorSetting, int x, int y, int w) {
+        float[] hsb = colorSetting.getHSB();
+        float[] square = colorPickerSquareBounds(x, y, w);
+        float squareX = square[0], squareY = square[1], squareW = square[2], squareH = square[3];
+
+        int hueColor = 0xFF000000 | (java.awt.Color.HSBtoRGB(hsb[0], 1f, 1f) & 0xFFFFFF);
+        NVGRenderer.gradientRect(squareX, squareY, squareW, squareH, 0xFFFFFFFF, hueColor, NVGRenderer.Gradient.LEFT_TO_RIGHT, 3f);
+        NVGRenderer.gradientRect(squareX, squareY, squareW, squareH, 0x00000000, 0xFF000000, NVGRenderer.Gradient.TOP_TO_BOTTOM, 3f);
+
+        float pointerX = squareX + hsb[1] * squareW;
+        float pointerY = squareY + (1f - hsb[2]) * squareH;
+        NVGRenderer.circle(pointerX, pointerY, 5f, 0xFFFFFFFF);
+        NVGRenderer.circle(pointerX, pointerY, 4f, 0xFF000000 | (colorSetting.getColor() & 0xFFFFFF));
+
+        float[] hue = colorPickerHueBounds(x, y, w);
+        // Six real 2-color gradients back to back (red->yellow->green->cyan->blue->magenta->red)
+        // instead of many flat color chips - each segment's end color exactly matches the next
+        // segment's start color, so there's no visible seam anywhere, just a continuous rainbow.
+        int stops = 6;
+        float segW = hue[2] / stops;
+        for (int i = 0; i < stops; i++) {
+            int startColor = 0xFF000000 | (java.awt.Color.HSBtoRGB(i / (float) stops, 1f, 1f) & 0xFFFFFF);
+            int endColor = 0xFF000000 | (java.awt.Color.HSBtoRGB((i + 1) / (float) stops, 1f, 1f) & 0xFFFFFF);
+            NVGRenderer.gradientRect(hue[0] + i * segW, hue[1], segW + 0.5f, hue[3], startColor, endColor, NVGRenderer.Gradient.LEFT_TO_RIGHT, 0f);
+        }
+        float huePointerX = hue[0] + hsb[0] * hue[2];
+        NVGRenderer.circle(huePointerX, hue[1] + hue[3] / 2f, 5f, 0xFFFFFFFF);
+        NVGRenderer.circle(huePointerX, hue[1] + hue[3] / 2f, 4f, hueColor);
+
+        float hexY = hue[1] + hue[3] + PICKER_GAP;
+        NVGRenderer.rect(squareX, hexY, squareW, PICKER_HEX_H, 0xFF2A2D34, 3f);
+        NVGRenderer.hollowRect(squareX, hexY, squareW, PICKER_HEX_H, 1f, colorSetting.isHexEditing() ? accentColor() : 0xFF3A3C44, 3f);
+    }
+
+    private void drawColorPickerHexText(ColorModuleSetting colorSetting, int x, int y, int w) {
+        float[] hue = colorPickerHueBounds(x, y, w);
+        float[] square = colorPickerSquareBounds(x, y, w);
+        float hexY = hue[1] + hue[3] + PICKER_GAP;
+        String text = "#" + colorSetting.getHexInput();
+        int color = colorSetting.isHexEditing() ? accentColor() : 0xFFFFFFFF;
+        NVGRenderer.textCentered(text, square[0], hexY, square[2], PICKER_HEX_H, SETTING_TEXT_SIZE, color);
+    }
+
+    private void updateColorFromSquareDrag(ColorModuleSetting colorSetting, float[] square, int mouseX, int mouseY) {
+        float sat = Math.max(0f, Math.min(1f, (mouseX - square[0]) / square[2]));
+        float bright = Math.max(0f, Math.min(1f, 1f - (mouseY - square[1]) / square[3]));
+        float[] hsb = colorSetting.getHSB();
+        colorSetting.setHSB(hsb[0], sat, bright);
+    }
+
+    private void updateColorFromHueDrag(ColorModuleSetting colorSetting, float[] hue, int mouseX) {
+        float h = Math.max(0f, Math.min(1f, (mouseX - hue[0]) / hue[2]));
+        float[] hsb = colorSetting.getHSB();
+        colorSetting.setHSB(h, hsb[1], hsb[2]);
+    }
+
+    private void drawSliderNVG(SliderModuleSetting slider, int x, int y, int h) {
+        int trackX = x + 62;
+        float trackY = y + h - 4.5f;
+        int trackW = COLUMN_WIDTH - 80;
+        float value = Math.max(0f, Math.min(1f, slider.getNormalizedValue()));
+        int fillW = (int) (trackW * value);
+        NVGRenderer.rect(trackX, trackY, trackW, 3, 0xFF2A2D34, 1.5f);
+        NVGRenderer.rect(trackX, trackY, fillW, 3, accentColor(), 1.5f);
+        NVGRenderer.circle(trackX + fillW, trackY + 1.5f, 3.5f, 0xFFEDEDF2);
+    }
+
+    private void drawScrollbarNVG(Panel panel, int panelHeight, int fullHeight) {
+        int trackTop = panel.y + HEADER_HEIGHT + 2;
+        int trackBottom = panel.y + panelHeight - 6;
+        int trackHeight = trackBottom - trackTop;
+        if (trackHeight <= 4) return;
+
+        int maxScroll = Math.max(1, fullHeight - panelHeight);
+        int thumbHeight = Math.min(trackHeight, Math.max(14, (int) (trackHeight * (panelHeight / (float) fullHeight))));
+        float progress = maxScroll <= 0 ? 0f : panel.scroll / (float) maxScroll;
+        int thumbY = trackTop + (int) ((trackHeight - thumbHeight) * progress);
+        int barX = panel.x + COLUMN_WIDTH - 5;
+
+        NVGRenderer.rect(barX, trackTop, 2, trackBottom - trackTop, alpha(0xFFFFFFFF, 0.08f), 1);
+        NVGRenderer.rect(barX, thumbY, 2, thumbHeight, alpha(accentColor(), 0.55f), 1);
+    }
+
     //? if 1.21.4 {
     /*@Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (handleMouseClicked((int) mouseX, (int) mouseY, button)) return true;
+        if (handleResetClick((int) mouseX, (int) mouseY, button)) return true;
+        if (handleMouseClicked(interactionMouseX(mouseX), interactionMouseY(mouseY), button)) return true;
         return super.mouseClicked(mouseX, mouseY, button);
     }
     *///?} else {
     @Override
     public boolean mouseClicked(MouseButtonEvent mouseButtonEvent, boolean doubled) {
-        if (handleMouseClicked((int) mouseButtonEvent.x(), (int) mouseButtonEvent.y(), mouseButtonEvent.button())) return true;
+        if (handleResetClick((int) mouseButtonEvent.x(), (int) mouseButtonEvent.y(), mouseButtonEvent.button())) {
+            return true;
+        }
+        if (handleMouseClicked(
+                interactionMouseX(mouseButtonEvent.x()),
+                interactionMouseY(mouseButtonEvent.y()),
+                mouseButtonEvent.button()
+        )) return true;
         return super.mouseClicked(mouseButtonEvent, doubled);
     }
     //?}
 
-    private boolean handleMouseClicked(int mouseX, int mouseY, int button) {
-        if (button == 0 && clickSidebar(mouseX, mouseY)) return true;
-
+    private boolean handleResetClick(int mouseX, int mouseY, int button) {
         if (button == 0) {
             int[] resetBounds = resetButtonBounds();
             if (mouseX >= resetBounds[0] && mouseX <= resetBounds[0] + resetBounds[2]
@@ -775,7 +1345,10 @@ public class RunalScreen extends Screen {
                 return true;
             }
         }
+        return false;
+    }
 
+    private boolean handleMouseClicked(int mouseX, int mouseY, int button) {
         for (Panel panel : panels) {
             if (mouseX >= panel.x
                     && mouseX <= panel.x + COLUMN_WIDTH
@@ -842,6 +1415,8 @@ public class RunalScreen extends Screen {
                                     draggingSlider = slider;
                                     draggingSliderPanelX = panel.x;
                                     setSliderFromMouse(slider, panel.x, mouseX);
+                                } else if (setting instanceof ColorModuleSetting colorSetting) {
+                                    handleColorPickerClick(colorSetting, panel.x, rowY, mouseX, mouseY);
                                 } else {
                                     setting.onClick();
                                     if (setting instanceof TextModuleSetting text) editingText = text;
@@ -862,13 +1437,16 @@ public class RunalScreen extends Screen {
     //? if 1.21.4 {
     /*@Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-        if (handleMouseDragged((int) mouseX, (int) mouseY)) return true;
+        if (handleMouseDragged(interactionMouseX(mouseX), interactionMouseY(mouseY))) return true;
         return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
     }
     *///?} else {
     @Override
     public boolean mouseDragged(MouseButtonEvent mouseButtonEvent, double dragX, double dragY) {
-        if (handleMouseDragged((int) mouseButtonEvent.x(), (int) mouseButtonEvent.y())) return true;
+        if (handleMouseDragged(
+                interactionMouseX(mouseButtonEvent.x()),
+                interactionMouseY(mouseButtonEvent.y())
+        )) return true;
         return super.mouseDragged(mouseButtonEvent, dragX, dragY);
     }
     //?}
@@ -876,6 +1454,17 @@ public class RunalScreen extends Screen {
     private boolean handleMouseDragged(int mouseX, int mouseY) {
         if (draggingSlider != null) {
             setSliderFromMouse(draggingSlider, draggingSliderPanelX, mouseX);
+            return true;
+        }
+
+        if (draggingColor != null) {
+            int pickerY = draggingColorRowY + PICKER_TOP_ROW + PICKER_GAP;
+            Integer section = draggingColor.getDragSection();
+            if (section != null && section == 0) {
+                updateColorFromSquareDrag(draggingColor, colorPickerSquareBounds(draggingColorPanelX, pickerY, COLUMN_WIDTH), mouseX, mouseY);
+            } else if (section != null && section == 1) {
+                updateColorFromHueDrag(draggingColor, colorPickerHueBounds(draggingColorPanelX, pickerY, COLUMN_WIDTH), mouseX);
+            }
             return true;
         }
 
@@ -907,6 +1496,10 @@ public class RunalScreen extends Screen {
 
     private void handleMouseReleased() {
         draggingSlider = null;
+        if (draggingColor != null) {
+            draggingColor.setDragSection(null);
+            draggingColor = null;
+        }
         for (Panel panel : panels) {
             panel.dragging = false;
         }
@@ -914,6 +1507,8 @@ public class RunalScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        int clickGuiMouseX = interactionMouseX(mouseX);
+        int clickGuiMouseY = interactionMouseY(mouseY);
         for (Panel panel : panels) {
             if (COLLAPSED_CATEGORIES.contains(panel.category)) continue;
 
@@ -925,8 +1520,8 @@ public class RunalScreen extends Screen {
             int maxScroll = Math.max(0, fullHeight - panelHeight);
             if (maxScroll <= 0) continue;
 
-            boolean inside = mouseX >= panel.x && mouseX <= panel.x + COLUMN_WIDTH
-                    && mouseY >= panel.y && mouseY <= panel.y + panelHeight;
+            boolean inside = clickGuiMouseX >= panel.x && clickGuiMouseX <= panel.x + COLUMN_WIDTH
+                    && clickGuiMouseY >= panel.y && clickGuiMouseY <= panel.y + panelHeight;
             if (inside) {
                 panel.scroll = Math.max(0, Math.min(maxScroll, panel.scroll - (int) (scrollY * SCROLL_SPEED)));
                 return true;
@@ -962,6 +1557,18 @@ public class RunalScreen extends Screen {
             }
         }
 
+        if (editingColor != null && editingColor.isHexEditing()) {
+            if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE || keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_ENTER) {
+                editingColor.stopHexEditing();
+                editingColor = null;
+                return true;
+            }
+            if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_BACKSPACE) {
+                editingColor.backspaceHex();
+                return true;
+            }
+        }
+
         for (Module module : ModuleManager.getModules()) {
             for (ModuleSetting setting : visibleSettings(module)) {
                 if (setting instanceof KeybindModuleSetting keybind && keybind.isListening()) {
@@ -991,6 +1598,10 @@ public class RunalScreen extends Screen {
             editingText.append(chr);
             return true;
         }
+        if (editingColor != null && editingColor.isHexEditing()) {
+            editingColor.appendHex(chr);
+            return true;
+        }
         return false;
     }
 
@@ -1005,4 +1616,3 @@ public class RunalScreen extends Screen {
         return false;
     }
 }
-

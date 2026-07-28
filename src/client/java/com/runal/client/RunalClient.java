@@ -11,6 +11,9 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 //?}
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+//? if 26.1.2 {
+import net.fabricmc.fabric.api.client.rendering.v1.PictureInPictureRendererRegistry;
+//?}
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
@@ -251,6 +254,14 @@ public class RunalClient implements ClientModInitializer {
 				GLFW.GLFW_KEY_UNKNOWN,
 				CATEGORY
 		));
+
+		//? if 26.1.2 {
+		// Without this, guiRenderState.addPicturesInPictureState(...) (called from
+		// NVGPIPRenderer.draw, used by RunalScreen's NanoVG ClickGUI chrome) queues render
+		// states that nothing ever processes - Minecraft needs to know which renderer
+		// instance handles that state class before it'll actually draw anything.
+		PictureInPictureRendererRegistry.register(context -> new NVGPIPRenderer(context.bufferSource()));
+		//?}
 
 		BuiltinModules.registerAll();
 		ModuleConfig.load();

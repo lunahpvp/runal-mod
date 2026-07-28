@@ -100,6 +100,12 @@ repositories {
 
 loom {
     splitEnvironmentSourceSets()
+    // Only wired in for the versions that use the NanoVG ClickGUI (GlDevice/GpuDevice.backend
+    // access widened for NVGPIPRenderer) - 1.21.4/1.21.11's Loom setup expects a differently
+    // namespaced widener file and fails configuration entirely if this is set unconditionally.
+    if (!is1214) {
+        accessWidenerPath = rootProject.file("src/main/resources/runal.accesswidener")
+    }
 
     mods {
         register("runal") {
@@ -118,6 +124,23 @@ dependencies {
 
     implementation("io.github.llamalad7:mixinextras-fabric:0.5.2")
     annotationProcessor("io.github.llamalad7:mixinextras-fabric:0.5.2")
+
+    // NanoVG-based ClickGUI rendering (NVGRenderer). Pulled in for every version because
+    // NVGRenderer.java itself isn't Stonecutter-gated (it has no version-specific Mojang
+    // API calls), so it needs to compile everywhere even though only 26.1.2/26.2 actually
+    // wire it up to the screen (see RunalScreen's `is1214` branch / NVGPIPRenderer, which
+    // *is* gated, since only those versions expose the PictureInPictureRenderState/
+    // GuiRenderState APIs it depends on).
+    run {
+        val nanoVGVersion = "3.4.1"
+        implementation("org.lwjgl:lwjgl-nanovg:$nanoVGVersion")
+        include("org.lwjgl:lwjgl-nanovg:$nanoVGVersion")
+
+        listOf("windows", "windows-arm64", "linux-arm64", "linux", "macos", "macos-arm64").forEach { os ->
+            implementation("org.lwjgl:lwjgl-nanovg:$nanoVGVersion:natives-$os")
+            include("org.lwjgl:lwjgl-nanovg:$nanoVGVersion:natives-$os")
+        }
+    }
 }
 
 java {

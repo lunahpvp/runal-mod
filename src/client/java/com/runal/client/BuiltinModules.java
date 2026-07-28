@@ -12,6 +12,7 @@ public class BuiltinModules {
         ModuleManager.register(new Module() {
             private final List<ModuleSetting> settings = List.of(new KeybindModuleSetting(RunalClient.getAutoSprintKey()));
             public String getName() { return "Auto Sprint"; }
+            public String getDescription() { return "Automatically sprints while moving forward."; }
             public String getCategory() { return "Combat"; }
             public boolean isEnabled() { return AutoSprintState.INSTANCE.isEnabled(); }
             public void toggle() { AutoSprintState.INSTANCE.toggle(); }
@@ -38,6 +39,7 @@ public class BuiltinModules {
                     new KeybindModuleSetting(RunalClient.getLowHealthToggleKey())
             );
             public String getName() { return "Health Indicator"; }
+            public String getDescription() { return "Warns you when your health drops below a threshold."; }
             public String getCategory() { return "Combat"; }
             public boolean isEnabled() { return LowHealthWarning.isEnabled(); }
             public void toggle() { LowHealthWarning.toggle(); }
@@ -52,6 +54,7 @@ public class BuiltinModules {
                     new KeybindModuleSetting(RunalClient.getHitboxesKey())
             );
             public String getName() { return "Hitboxes"; }
+            public String getDescription() { return "Renders hitboxes around players and entities."; }
             public String getCategory() { return "Combat"; }
             public boolean isEnabled() { return HitboxesState.INSTANCE.isEnabled(); }
             public void toggle() { HitboxesState.INSTANCE.toggle(); }
@@ -61,6 +64,7 @@ public class BuiltinModules {
         ModuleManager.register(new Module() {
             private final List<ModuleSetting> settings = List.of(new KeybindModuleSetting(RunalClient.getFullbrightKey()));
             public String getName() { return "Fullbright"; }
+            public String getDescription() { return "Removes darkness so everything is fully lit."; }
             public String getCategory() { return "Visual"; }
             public boolean isEnabled() { return FullbrightState.INSTANCE.isEnabled(); }
             public void toggle() { FullbrightState.INSTANCE.toggle(); }
@@ -70,6 +74,7 @@ public class BuiltinModules {
         ModuleManager.register(new Module() {
             private final List<ModuleSetting> settings = List.of(new KeybindModuleSetting(RunalClient.getHidePlayersKey()));
             public String getName() { return "Hide Players"; }
+            public String getDescription() { return "Hides other players from rendering."; }
             public String getCategory() { return "Visual"; }
             public boolean isEnabled() { return HidePlayersState.INSTANCE.isEnabled(); }
             public void toggle() { HidePlayersState.INSTANCE.toggle(); }
@@ -79,6 +84,7 @@ public class BuiltinModules {
         ModuleManager.register(new Module() {
             private final List<ModuleSetting> settings = buildHotbarSwapSettings();
             public String getName() { return "Hotbar Swap"; }
+            public String getDescription() { return "Quickly swaps hotbar slots with a keybind."; }
             public String getCategory() { return "Misc"; }
             public boolean isEnabled() { return true; }
             public void toggle() { }
@@ -88,6 +94,7 @@ public class BuiltinModules {
         ModuleManager.register(new Module() {
             private final List<ModuleSetting> settings = buildCommandBindSettings();
             public String getName() { return "Command Binds"; }
+            public String getDescription() { return "Runs a chat command when a keybind is pressed."; }
             public String getCategory() { return "Misc"; }
             public boolean isEnabled() { return true; }
             public void toggle() { }
@@ -103,6 +110,7 @@ public class BuiltinModules {
                     new KeybindModuleSetting(RunalClient.getAutoGGKey())
             );
             public String getName() { return "Auto GG"; }
+            public String getDescription() { return "Announces a message when a player finds an important item."; }
             public String getCategory() { return "Misc"; }
             public boolean isEnabled() { return AutoGGState.INSTANCE.isEnabled(); }
             public void toggle() { AutoGGState.INSTANCE.toggle(); }
@@ -120,6 +128,7 @@ public class BuiltinModules {
                     new KeybindModuleSetting(RunalClient.getAutoTrashKey())
             );
             public String getName() { return "Auto Trash"; }
+            public String getDescription() { return "Automatically discards shards."; }
             public String getCategory() { return "Misc"; }
             public boolean isEnabled() { return AutoTrashState.INSTANCE.isEnabled(); }
             public void toggle() { AutoTrashState.INSTANCE.toggle(); }
@@ -136,6 +145,7 @@ public class BuiltinModules {
                     new KeybindModuleSetting(RunalClient.getHideArmorKey())
             );
             public String getName() { return "Hide Armor"; }
+            public String getDescription() { return "Hides your equipped armor pieces from rendering."; }
             public String getCategory() { return "Visual"; }
             public boolean isEnabled() { return HideArmorState.INSTANCE.isEnabled(); }
             public void toggle() { HideArmorState.INSTANCE.toggle(); }
@@ -149,7 +159,8 @@ public class BuiltinModules {
                     new EnumModuleSetting("Render Style", List.of("Bar", "Compact", "Text"), () -> state.renderStyle, v -> state.renderStyle = v),
                     new SettingGroup("Display & Positioning", List.of(
                             new EnumModuleSetting("Health Format", List.of("Current", "Percent"), () -> state.healthFormat, v -> state.healthFormat = v),
-                            new ToggleModuleSetting("Show Max Health", () -> state.showMaxHealth, v -> state.showMaxHealth = v),
+                            new ToggleModuleSetting("Show Max Health", () -> state.showMaxHealth, v -> state.showMaxHealth = v)
+                                    .withDescription("Shows your current maximum health."),
                             new EnumModuleSetting("Text Position", List.of("Center", "Left", "Right", "Above", "Below"), () -> state.textPosition, v -> state.textPosition = v),
                             new SliderModuleSetting("Y Offset", -40f, 40f, 1f, () -> (float) state.yOffset, v -> state.yOffset = Math.round(v))
                     )),
@@ -177,6 +188,7 @@ public class BuiltinModules {
                     new KeybindModuleSetting(RunalClient.getHealthBarKey())
             );
             public String getName() { return "Health Bar"; }
+            public String getDescription() { return "Displays a customizable health bar above players."; }
             public String getCategory() { return "Visual"; }
             public boolean isEnabled() { return state.isEnabled(); }
             public void toggle() { state.toggle(); }
@@ -192,6 +204,7 @@ public class BuiltinModules {
                     new KeybindModuleSetting(RunalClient.getPlayerScaleKey())
             );
             public String getName() { return "Player Size"; }
+            public String getDescription() { return "Scales your player model up or down."; }
             public String getCategory() { return "Visual"; }
             public boolean isEnabled() { return PlayerScaleState.INSTANCE.isScaled(); }
             public void toggle() { if (isEnabled()) PlayerScaleState.INSTANCE.setScale(1.0f); else PlayerScaleState.INSTANCE.setScale(1.2f); }
@@ -207,6 +220,7 @@ public class BuiltinModules {
                     new EnumModuleSetting("Time Format", List.of("Short", "Long"), () -> SessionManagerState.timeFormat, v -> SessionManagerState.timeFormat = v)
             );
             public String getName() { return "Session Manager"; }
+            public String getDescription() { return "Tracks and displays your play session stats."; }
             public String getCategory() { return "Tracking"; }
             public boolean isEnabled() { return SessionManagerState.enabled; }
             public void toggle() { SessionManagerState.enabled = !SessionManagerState.enabled; }
@@ -223,6 +237,7 @@ public class BuiltinModules {
                     new ColorModuleSetting("Value Color", () -> PerformanceHudState.valueColor, v -> PerformanceHudState.valueColor = v)
             );
             public String getName() { return "Performance HUD"; }
+            public String getDescription() { return "Displays FPS, TPS, ping, and facing direction."; }
             public String getCategory() { return "Tracking"; }
             public boolean isEnabled() { return PerformanceHudState.enabled; }
             public void toggle() { PerformanceHudState.enabled = !PerformanceHudState.enabled; }
@@ -235,6 +250,7 @@ public class BuiltinModules {
                     new ColorModuleSetting("Value Color", () -> EventTrackerState.valueColor, v -> EventTrackerState.valueColor = v)
             );
             public String getName() { return "Event Tracker"; }
+            public String getDescription() { return "Tracks in-game events and displays their status."; }
             public String getCategory() { return "Tracking"; }
             public boolean isEnabled() { return EventTrackerState.enabled; }
             public void toggle() { EventTrackerState.enabled = !EventTrackerState.enabled; }
@@ -247,7 +263,8 @@ public class BuiltinModules {
                     new ColorModuleSetting("Value Color", () -> ItemCooldownHudState.valueColor, v -> ItemCooldownHudState.valueColor = v)
             );
             public String getName() { return "Weapons Cooldown"; }
-            public String getCategory() { return "Tracking"; }
+            public String getDescription() { return "Displays weapon ability cooldowns on screen."; }
+            public String getCategory() { return "Combat"; }
             public boolean isEnabled() { return ItemCooldownHudState.enabled; }
             public void toggle() { ItemCooldownHudState.enabled = !ItemCooldownHudState.enabled; }
             public List<ModuleSetting> getSettings() { return settings; }
@@ -259,7 +276,8 @@ public class BuiltinModules {
                     new ColorModuleSetting("Value Color", () -> ArmorCooldownHudState.valueColor, v -> ArmorCooldownHudState.valueColor = v)
             );
             public String getName() { return "Armor Cooldown"; }
-            public String getCategory() { return "Tracking"; }
+            public String getDescription() { return "Displays armor ability cooldowns on screen."; }
+            public String getCategory() { return "Combat"; }
             public boolean isEnabled() { return ArmorCooldownHudState.enabled; }
             public void toggle() { ArmorCooldownHudState.enabled = !ArmorCooldownHudState.enabled; }
             public List<ModuleSetting> getSettings() { return settings; }
@@ -271,7 +289,8 @@ public class BuiltinModules {
                     new ColorModuleSetting("Value Color", () -> AccessoryCooldownState.valueColor, v -> AccessoryCooldownState.valueColor = v)
             );
             public String getName() { return "Accessory Cooldown"; }
-            public String getCategory() { return "Tracking"; }
+            public String getDescription() { return "Displays accessory ability cooldowns on screen."; }
+            public String getCategory() { return "Combat"; }
             public boolean isEnabled() { return AccessoryCooldownState.enabled; }
             public void toggle() { AccessoryCooldownState.enabled = !AccessoryCooldownState.enabled; }
             public List<ModuleSetting> getSettings() { return settings; }
@@ -283,6 +302,7 @@ public class BuiltinModules {
                     new ColorModuleSetting("Value Color", () -> DungeonTrackerState.valueColor, v -> DungeonTrackerState.valueColor = v)
             );
             public String getName() { return "Dungeon Tracker"; }
+            public String getDescription() { return "Tracks dungeon progress and displays it on screen."; }
             public String getCategory() { return "Tracking"; }
             public boolean isEnabled() { return DungeonTrackerState.enabled; }
             public void toggle() { DungeonTrackerState.enabled = !DungeonTrackerState.enabled; }
@@ -295,6 +315,7 @@ public class BuiltinModules {
                     new ColorModuleSetting("Value Color", () -> BossDefeatState.valueColor, v -> BossDefeatState.valueColor = v)
             );
             public String getName() { return "Boss Defeat Counter"; }
+            public String getDescription() { return "Counts and displays boss defeats."; }
             public String getCategory() { return "Tracking"; }
             public boolean isEnabled() { return BossDefeatState.enabled; }
             public void toggle() { BossDefeatState.enabled = !BossDefeatState.enabled; }
@@ -307,6 +328,7 @@ public class BuiltinModules {
                     new EnumModuleSetting("Orientation", List.of("Horizontal", "Vertical"), () -> ArmorHudState.orientation, v -> ArmorHudState.orientation = v)
             );
             public String getName() { return "Armor HUD"; }
+            public String getDescription() { return "Displays your equipped armor pieces on screen."; }
             public String getCategory() { return "Visual"; }
             public boolean isEnabled() { return ArmorHudState.enabled; }
             public void toggle() { ArmorHudState.enabled = !ArmorHudState.enabled; }
@@ -317,12 +339,12 @@ public class BuiltinModules {
             private final List<ModuleSetting> settings = List.of(
                     new ToggleModuleSetting("Chat Notifications", () -> RunalSettings.chatNotifications, v -> RunalSettings.chatNotifications = v),
                     new ColorModuleSetting("Accent Color", () -> RunalSettings.accentColor, v -> RunalSettings.accentColor = v),
-                    new ToggleModuleSetting("Rounded Panel Bottoms", () -> RunalSettings.roundedPanelBottoms, v -> RunalSettings.roundedPanelBottoms = v),
                     new EnumModuleSetting("Cooldown Display", List.of("Percent", "Seconds"), () -> RunalSettings.cooldownDisplayMode, v -> RunalSettings.cooldownDisplayMode = v),
                     new ButtonModuleSetting("HUD Editor", "Open", () -> Minecraft.getInstance().setScreen(new HudEditorScreen())),
                     new KeybindModuleSetting(RunalClient.getOpenMenuKey())
             );
             public String getName() { return "Click GUI"; }
+            public String getDescription() { return "Settings for the click GUI itself."; }
             public String getCategory() { return "Misc"; }
             public boolean isEnabled() { return true; }
             public void toggle() { Minecraft.getInstance().setScreen(new RunalScreen()); }
@@ -332,6 +354,7 @@ public class BuiltinModules {
         ModuleManager.register(new Module() {
             private final List<ModuleSetting> settings = List.of();
             public String getName() { return "DiscordRPC"; }
+            public String getDescription() { return "Shows your current activity on Discord."; }
             public String getCategory() { return "Misc"; }
             public boolean isEnabled() { return DiscordPresenceState.enabled; }
             public void toggle() { DiscordPresenceState.enabled = !DiscordPresenceState.enabled; }
@@ -345,8 +368,9 @@ public class BuiltinModules {
                     new ButtonModuleSetting("Team Selector", "Open", () -> Minecraft.getInstance().setScreen(new TeamTrackerScreen())),
                     new KeybindModuleSetting(RunalClient.getTeamTrackerKey())
             );
-            public String getName() { return "Team Tracker"; }
-            public String getCategory() { return "Tracking"; }
+            public String getName() { return "Teammate Track"; }
+            public String getDescription() { return "Tracks and highlights your party/team members."; }
+            public String getCategory() { return "Visual"; }
             public boolean isEnabled() { return TeamTrackerState.INSTANCE.isEnabled(); }
             public void toggle() { TeamTrackerState.INSTANCE.toggle(); }
             public List<ModuleSetting> getSettings() { return settings; }
@@ -360,6 +384,7 @@ public class BuiltinModules {
                     new KeybindModuleSetting(RunalClient.getNewWaypointKey())
             );
             public String getName() { return "Waypoints"; }
+            public String getDescription() { return "Manage and display custom waypoints in the world."; }
             public String getCategory() { return "Tracking"; }
             public boolean isEnabled() { return WaypointManagerState.INSTANCE.isEnabled(); }
             public void toggle() { WaypointManagerState.INSTANCE.toggle(); }
@@ -372,7 +397,8 @@ public class BuiltinModules {
                     new SliderModuleSetting("Scale", 1.0f, 5.0f, 0.25f, () -> BossTitleState.scale, v -> BossTitleState.scale = v)
             );
             public String getName() { return "Boss Callout"; }
-            public String getCategory() { return "Tracking"; }
+            public String getDescription() { return "Displays a title on screen when a boss uses an attack."; }
+            public String getCategory() { return "Combat"; }
             public boolean isEnabled() { return BossTitleState.enabled; }
             public void toggle() { BossTitleState.enabled = !BossTitleState.enabled; }
             public List<ModuleSetting> getSettings() { return settings; }

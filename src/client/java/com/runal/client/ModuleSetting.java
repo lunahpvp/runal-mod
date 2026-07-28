@@ -5,6 +5,10 @@ public interface ModuleSetting {
     String getDisplayValue();
     void onClick();
 
+    default String getDescription() {
+        return "";
+    }
+
     default String getConfigKey() {
         return getLabel().toLowerCase().replaceAll("[^a-z0-9]+", "_").replaceAll("^_|_$", "");
     }

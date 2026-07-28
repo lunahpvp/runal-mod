@@ -9,6 +9,10 @@ public interface Module {
     boolean isEnabled();
     void toggle();
 
+    default String getDescription() {
+        return "";
+    }
+
     default List<ModuleSetting> getSettings() {
         return Collections.emptyList();
     }
