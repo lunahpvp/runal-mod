@@ -42,6 +42,7 @@ public class HudEditorScreen extends Screen {
         drawWidget(context, "Session", SessionManagerState.x, SessionManagerState.y, 112, 24, SessionManagerState.widgetColor);
         drawWidget(context, "Performance", PerformanceHudState.x, PerformanceHudState.y, 112, 46, 0xAA101216);
         drawWidget(context, "Armor", ArmorHudState.x, ArmorHudState.y, "Vertical".equals(ArmorHudState.orientation) ? 24 : 84, "Vertical".equals(ArmorHudState.orientation) ? 84 : 24, 0xAA101216);
+        drawWidget(context, "Inventory", InventoryHudState.x, InventoryHudState.y, InventoryHudState.WIDTH, InventoryHudState.HEIGHT, 0x55101216);
         drawWidget(context, "Events", EventTrackerState.x, EventTrackerState.y, 100, 40, 0xAA101216);
         drawWidget(context, "Cooldowns", ItemCooldownHudState.x, ItemCooldownHudState.y, 100, 40, 0xAA101216);
         drawWidget(context, "Dungeon Tracker", DungeonTrackerState.x, DungeonTrackerState.y, 100, 62, 0xAA101216);
@@ -106,6 +107,7 @@ public class HudEditorScreen extends Screen {
         int armorW = "Vertical".equals(ArmorHudState.orientation) ? 24 : 84;
         int armorH = "Vertical".equals(ArmorHudState.orientation) ? 84 : 24;
         if (inside(mouseX, mouseY, ArmorHudState.x, ArmorHudState.y, armorW, armorH)) return startDrag("armor", mouseX, mouseY, ArmorHudState.x, ArmorHudState.y);
+        if (inside(mouseX, mouseY, InventoryHudState.x, InventoryHudState.y, InventoryHudState.WIDTH, InventoryHudState.HEIGHT)) return startDrag("inventory", mouseX, mouseY, InventoryHudState.x, InventoryHudState.y);
         if (inside(mouseX, mouseY, EventTrackerState.x, EventTrackerState.y, 100, 40)) return startDrag("events", mouseX, mouseY, EventTrackerState.x, EventTrackerState.y);
         if (inside(mouseX, mouseY, ItemCooldownHudState.x, ItemCooldownHudState.y, 100, 40)) return startDrag("itemCooldowns", mouseX, mouseY, ItemCooldownHudState.x, ItemCooldownHudState.y);
         if (inside(mouseX, mouseY, DungeonTrackerState.x, DungeonTrackerState.y, 100, 62)) return startDrag("dungeonTracker", mouseX, mouseY, DungeonTrackerState.x, DungeonTrackerState.y);
@@ -162,6 +164,7 @@ public class HudEditorScreen extends Screen {
         if ("session".equals(dragging)) { SessionManagerState.x = x; SessionManagerState.y = y; }
         if ("performance".equals(dragging)) { PerformanceHudState.x = x; PerformanceHudState.y = y; }
         if ("armor".equals(dragging)) { ArmorHudState.x = x; ArmorHudState.y = y; }
+        if ("inventory".equals(dragging)) { InventoryHudState.x = x; InventoryHudState.y = y; }
         if ("events".equals(dragging)) { EventTrackerState.x = x; EventTrackerState.y = y; }
         if ("itemCooldowns".equals(dragging)) { ItemCooldownHudState.x = x; ItemCooldownHudState.y = y; }
         if ("dungeonTracker".equals(dragging)) { DungeonTrackerState.x = x; DungeonTrackerState.y = y; }

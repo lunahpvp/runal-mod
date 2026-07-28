@@ -61,6 +61,10 @@ public class UtilityHudRenderer {
             drawArmor(graphics, mc);
         }
 
+        if (InventoryHudState.enabled && mc.player != null) {
+            drawInventory(graphics, mc);
+        }
+
         drawCooldowns(graphics, mc);
 
         if (EventTrackerState.enabled && !EventTrackerState.events.isEmpty()) {
@@ -295,6 +299,22 @@ public class UtilityHudRenderer {
                 graphics.itemDecorations(mc.font, stack, ix, iy);
             } else {
                 graphics.outline(ix, iy, 16, 16, 0x559D9DA8);
+            }
+        }
+    }
+
+    private static void drawInventory(net.minecraft.client.gui.GuiGraphicsExtractor graphics, Minecraft mc) {
+        for (int row = 0; row < InventoryHudState.ROWS; row++) {
+            for (int column = 0; column < InventoryHudState.COLUMNS; column++) {
+                int inventoryIndex = row * InventoryHudState.COLUMNS + column;
+                Slot slot = mc.player.inventoryMenu.getSlot(InventoryMenu.INV_SLOT_START + inventoryIndex);
+                ItemStack stack = slot.getItem();
+                if (stack.isEmpty()) continue;
+
+                int x = InventoryHudState.x + column * InventoryHudState.SLOT_SPACING;
+                int y = InventoryHudState.y + row * InventoryHudState.SLOT_SPACING;
+                graphics.item(stack, x, y);
+                graphics.itemDecorations(mc.font, stack, x, y);
             }
         }
     }

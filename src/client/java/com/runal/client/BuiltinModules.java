@@ -336,6 +336,14 @@ public class BuiltinModules {
         });
 
         ModuleManager.register(new Module() {
+            public String getName() { return "Inventory HUD"; }
+            public String getDescription() { return "Shows the three main inventory rows without opening your inventory."; }
+            public String getCategory() { return "Visual"; }
+            public boolean isEnabled() { return InventoryHudState.enabled; }
+            public void toggle() { InventoryHudState.enabled = !InventoryHudState.enabled; }
+        });
+
+        ModuleManager.register(new Module() {
             private final List<ModuleSetting> settings = List.of(
                     new ToggleModuleSetting("Chat Notifications", () -> RunalSettings.chatNotifications, v -> RunalSettings.chatNotifications = v),
                     new ColorModuleSetting("Accent Color", () -> RunalSettings.accentColor, v -> RunalSettings.accentColor = v),

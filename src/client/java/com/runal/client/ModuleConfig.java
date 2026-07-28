@@ -49,6 +49,8 @@ public class ModuleConfig {
         props.setProperty("hud.performance.y", String.valueOf(PerformanceHudState.y));
         props.setProperty("hud.armor.x", String.valueOf(ArmorHudState.x));
         props.setProperty("hud.armor.y", String.valueOf(ArmorHudState.y));
+        props.setProperty("hud.inventory.x", String.valueOf(InventoryHudState.x));
+        props.setProperty("hud.inventory.y", String.valueOf(InventoryHudState.y));
         props.setProperty("hud.events.x", String.valueOf(EventTrackerState.x));
         props.setProperty("hud.events.y", String.valueOf(EventTrackerState.y));
         props.setProperty("hud.item_cooldowns.x", String.valueOf(ItemCooldownHudState.x));
@@ -72,6 +74,8 @@ public class ModuleConfig {
         PerformanceHudState.y = getInt(props, "hud.performance.y", PerformanceHudState.y);
         ArmorHudState.x = getInt(props, "hud.armor.x", ArmorHudState.x);
         ArmorHudState.y = getInt(props, "hud.armor.y", ArmorHudState.y);
+        InventoryHudState.x = getInt(props, "hud.inventory.x", InventoryHudState.x);
+        InventoryHudState.y = getInt(props, "hud.inventory.y", InventoryHudState.y);
         EventTrackerState.x = getInt(props, "hud.events.x", EventTrackerState.x);
         EventTrackerState.y = getInt(props, "hud.events.y", EventTrackerState.y);
         ItemCooldownHudState.x = getInt(props, "hud.item_cooldowns.x", ItemCooldownHudState.x);
