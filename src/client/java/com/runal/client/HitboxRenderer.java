@@ -22,7 +22,6 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.ShapeRenderer;
 //?}
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -40,7 +39,7 @@ public class HitboxRenderer {
         /*WorldRenderEvents.END_MAIN.register(HitboxRenderer::render);
         *///?}
         //? if 26.1.2 || 26.2 {
-        LevelRenderEvents.AFTER_TRANSLUCENT_TERRAIN.register(HitboxRenderer::render);
+        LevelRenderEvents.END_MAIN.register(HitboxRenderer::render);
         //?}
     }
 
@@ -78,11 +77,14 @@ public class HitboxRenderer {
         poseStack.pushPose();
         poseStack.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
 
+        float tickDelta = mc.getDeltaTracker().getGameTimeDeltaPartialTick(true);
         for (Entity entity : mc.level.entitiesForRendering()) {
-            if (!(entity instanceof LivingEntity) || entity.isRemoved()) continue;
+            if (entity.isRemoved()) continue;
             if (entity == mc.player && mc.options.getCameraType().isFirstPerson()) continue;
 
-            AABB box = entity.getBoundingBox();
+            AABB box = getRenderBoundingBox(entity, tickDelta);
+            if (isTooThin(box)) continue;
+
             int color = entity instanceof Player ? HitboxesState.INSTANCE.playerColor : HitboxesState.INSTANCE.entityColor;
             //? if 1.21.4 {
             /*ShapeRenderer.renderShape(poseStack, consumer, Shapes.create(box), 0, 0, 0, color);
@@ -102,5 +104,21 @@ public class HitboxRenderer {
         //? if 1.21.11 || 26.1.2 {
         bufferSource.endBatch(RenderTypes.lines());
         //?}
+    }
+
+    private static AABB getRenderBoundingBox(Entity entity, float tickDelta) {
+        double renderX = entity.xo + (entity.getX() - entity.xo) * tickDelta;
+        double renderY = entity.yo + (entity.getY() - entity.yo) * tickDelta;
+        double renderZ = entity.zo + (entity.getZ() - entity.zo) * tickDelta;
+        return entity.getBoundingBox().move(
+                renderX - entity.getX(),
+                renderY - entity.getY(),
+                renderZ - entity.getZ()
+        );
+    }
+
+    private static boolean isTooThin(AABB box) {
+        double minSize = 0.01;
+        return box.getXsize() < minSize || box.getYsize() < minSize || box.getZsize() < minSize;
     }
 }
