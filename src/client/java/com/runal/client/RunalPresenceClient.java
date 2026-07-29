@@ -48,6 +48,8 @@ public final class RunalPresenceClient {
             });
     private static final Set<String> ACTIVE_USERS = ConcurrentHashMap.newKeySet();
     private static final Set<String> ACTIVE_NAMES = ConcurrentHashMap.newKeySet();
+    private static final Set<String> VERIFIED_CLAIMS = ConcurrentHashMap.newKeySet();
+    private static final Set<String> CURRENT_CLAIMS = ConcurrentHashMap.newKeySet();
     private static final AtomicBoolean CONNECTING = new AtomicBoolean(false);
     private static final AtomicInteger GENERATION = new AtomicInteger();
     private static final AtomicInteger SYNC_GENERATION = new AtomicInteger();
@@ -107,6 +109,8 @@ public final class RunalPresenceClient {
         CONNECTING.set(false);
         ACTIVE_USERS.clear();
         ACTIVE_NAMES.clear();
+        VERIFIED_CLAIMS.clear();
+        CURRENT_CLAIMS.clear();
         SYNC_GENERATION.incrementAndGet();
 
         WebSocket current = socket;
@@ -181,7 +185,8 @@ public final class RunalPresenceClient {
 
     private static void verifySnapshot(JsonArray users) {
         int syncGeneration = SYNC_GENERATION.incrementAndGet();
-        List<CompletableFuture<PresenceClaim>> checks = new ArrayList<>();
+        List<PresenceClaim> claims = new ArrayList<>();
+        Set<String> presentKeys = ConcurrentHashMap.newKeySet();
 
         for (JsonElement userElement : users) {
             try {
@@ -194,11 +199,32 @@ public final class RunalPresenceClient {
                         || !serverId.matches("[0-9a-f]{40}")) {
                     continue;
                 }
-                checks.add(verifyClaim(name, uuid, serverId)
-                        .thenApply(valid -> valid ? new PresenceClaim(uuid, name) : null));
+                PresenceClaim claim = new PresenceClaim(uuid, name, serverId);
+                claims.add(claim);
+                presentKeys.add(claim.key());
             } catch (Exception ignored) {
                 // Ignore malformed claims without dropping the rest of the snapshot.
             }
+        }
+
+        CURRENT_CLAIMS.clear();
+        CURRENT_CLAIMS.addAll(presentKeys);
+        VERIFIED_CLAIMS.retainAll(presentKeys);
+
+        List<CompletableFuture<PresenceClaim>> checks = new ArrayList<>();
+        for (PresenceClaim claim : claims) {
+            if (VERIFIED_CLAIMS.contains(claim.key())) {
+                checks.add(CompletableFuture.completedFuture(claim));
+                continue;
+            }
+            checks.add(verifyClaim(claim.name(), claim.uuid(), claim.serverId())
+                    .thenApply(valid -> {
+                        if (!valid) return null;
+                        if (CURRENT_CLAIMS.contains(claim.key())) {
+                            VERIFIED_CLAIMS.add(claim.key());
+                        }
+                        return claim;
+                    }));
         }
 
         CompletableFuture.allOf(checks.toArray(CompletableFuture[]::new))
@@ -231,10 +257,20 @@ public final class RunalPresenceClient {
                 .header("User-Agent", "Runal/1.1")
                 .GET()
                 .build();
+        return verifyClaim(request, name, expectedUuid, 0);
+    }
 
+    private static CompletableFuture<Boolean> verifyClaim(
+            HttpRequest request,
+            String name,
+            String expectedUuid,
+            int attempt
+    ) {
         return HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
-                .thenApply(response -> {
-                    if (response.statusCode() != 200 || response.body().isBlank()) return false;
+                .handle((response, error) -> {
+                    if (error != null || response.statusCode() != 200 || response.body().isBlank()) {
+                        return false;
+                    }
                     try {
                         JsonObject profile = JsonParser.parseString(response.body()).getAsJsonObject();
                         return expectedUuid.equals(normalizeUuid(profile.get("id").getAsString()))
@@ -243,7 +279,19 @@ public final class RunalPresenceClient {
                         return false;
                     }
                 })
-                .exceptionally(error -> false);
+                .thenCompose(valid -> {
+                    if (valid || attempt >= 4) return CompletableFuture.completedFuture(valid);
+                    return CompletableFuture.supplyAsync(
+                                    () -> null,
+                                    CompletableFuture.delayedExecutor(300, TimeUnit.MILLISECONDS)
+                            )
+                            .thenCompose(ignored -> verifyClaim(
+                                    request,
+                                    name,
+                                    expectedUuid,
+                                    attempt + 1
+                            ));
+                });
     }
 
     private static String currentVersion() {
@@ -261,7 +309,10 @@ public final class RunalPresenceClient {
         return name.toLowerCase();
     }
 
-    private record PresenceClaim(String uuid, String name) {
+    private record PresenceClaim(String uuid, String name, String serverId) {
+        private String key() {
+            return uuid + ":" + serverId;
+        }
     }
 
     private static final class Listener implements WebSocket.Listener {
