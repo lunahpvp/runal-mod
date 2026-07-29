@@ -8,7 +8,9 @@
 		"HumanoidArmorLayerMixin",
 		"AvatarRendererMixin",
 		"EntityGlowMixin",
-		"HidePlayersMixin"
+		"HidePlayersMixin",
+		"PlayerTabOverlayMixin",
+		"EntityNameTagMixin"
 
 	],
 	"injectors": {

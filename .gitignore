@@ -41,3 +41,9 @@ replay_*.log
 
 # old pre-migration scratch backup, not real source
 _premigration_backup/
+
+# generated local tooling
+tmp/
+presence-worker/node_modules/
+presence-worker/.wrangler/
+presence-worker/.wrangler-dry-run/
