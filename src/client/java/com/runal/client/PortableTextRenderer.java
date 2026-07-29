@@ -1,12 +1,13 @@
 package com.runal.client;
 
-import net.minecraft.client.gui.GuiGraphicsExtractor;
-
-//? if 26.1.2 {
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
+//? if 1.21.4 {
+/*import net.minecraft.client.renderer.RenderType;
+*///?}
 
 import java.awt.Color;
 import java.awt.Font;
@@ -19,7 +20,10 @@ import java.awt.image.BufferedImage;
 import java.io.InputStream;
 import java.util.LinkedHashMap;
 import java.util.Map;
+//? if 1.21.4 {
+//?} else {
 import java.util.function.Supplier;
+//?}
 
 /**
  * CPU-rasterized Inter text for graphics backends that cannot run NanoVGGL3.
@@ -62,6 +66,20 @@ public final class PortableTextRenderer {
     ) {
         if (text == null || text.isEmpty()) return;
         TextTexture texture = get(text, size, color);
+        //? if 1.21.4 {
+        /*context.blit(
+                RenderType::guiTextured,
+                texture.id,
+                x,
+                y,
+                0f,
+                0f,
+                texture.width,
+                texture.height,
+                texture.width,
+                texture.height
+        );
+        *///?} else {
         context.blit(
                 texture.id,
                 x,
@@ -73,6 +91,7 @@ public final class PortableTextRenderer {
                 0f,
                 1f
         );
+        //?}
     }
 
     public static void clear() {
@@ -124,8 +143,12 @@ public final class PortableTextRenderer {
         String textureName = Integer.toUnsignedString(key.hashCode(), 36)
                 + "_" + Long.toUnsignedString(nextTextureId++, 36);
         Identifier id = Identifier.fromNamespaceAndPath("runal", "portable_text/" + textureName);
+        //? if 1.21.4 {
+        /*DynamicTexture texture = new DynamicTexture(image);
+        *///?} else {
         Supplier<String> label = () -> "Runal portable text " + textureName;
         DynamicTexture texture = new DynamicTexture(label, image);
+        //?}
         Minecraft.getInstance().getTextureManager().register(id, texture);
         texture.upload();
         return new TextTexture(id, width, height);
@@ -161,33 +184,3 @@ public final class PortableTextRenderer {
     private record TextTexture(Identifier id, int width, int height) {
     }
 }
-//?} else {
-/*
-// The portable renderer is only used by 26.1.2's VulkanMod path. Other Stonecutter
-// targets keep this no-op shell so the shared RunalScreen source still compiles.
-public final class PortableTextRenderer {
-    private PortableTextRenderer() {
-    }
-
-    public static int width(String text, int size) {
-        return Math.max(1, text.length() * Math.max(1, size / 2));
-    }
-
-    public static int height(String text, int size) {
-        return Math.max(1, size);
-    }
-
-    public static void draw(
-            GuiGraphicsExtractor context,
-            String text,
-            int x,
-            int y,
-            int size,
-            int color
-    ) {
-    }
-
-    public static void clear() {
-    }
-}
-*///?}

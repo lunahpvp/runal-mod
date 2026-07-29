@@ -30,6 +30,10 @@ function isValidUuid(value) {
   return /^[0-9a-f]{32}$/.test(normalizeUuid(value));
 }
 
+function delay(milliseconds) {
+  return new Promise(resolve => setTimeout(resolve, milliseconds));
+}
+
 export class PresenceRoom {
   constructor(ctx, env) {
     this.ctx = ctx;
@@ -84,11 +88,13 @@ export class PresenceRoom {
     }
 
     if (message.action !== "auth_response") {
+      console.warn(`Closing socket: expected auth_response, got action=${message.action}`);
       socket.close(1008, "authentication required");
       return;
     }
 
     if (Date.now() - Number(attachment.connectedAt || 0) > AUTH_TIMEOUT_MS) {
+      console.warn("Closing socket: authentication expired before auth_response arrived");
       socket.close(1008, "authentication expired");
       return;
     }
@@ -96,6 +102,7 @@ export class PresenceRoom {
     const name = message.name;
     const uuid = normalizeUuid(message.uuid);
     if (!isValidName(name) || !isValidUuid(uuid) || !attachment.serverId) {
+      console.warn(`Closing socket: invalid identity name=${JSON.stringify(name)} uuid=${JSON.stringify(message.uuid)} serverId=${attachment.serverId}`);
       socket.close(1008, "invalid identity");
       return;
     }
@@ -106,9 +113,11 @@ export class PresenceRoom {
       attachment.serverId
     );
     if (!authenticatedProfile) {
+      console.warn(`Closing socket: minecraft authentication failed for name=${name} uuid=${uuid}`);
       socket.close(1008, "minecraft authentication failed");
       return;
     }
+    console.log(`Authenticated ${name} (${uuid})`);
 
     socket.serializeAttachment({
       authenticated: true,
@@ -126,28 +135,58 @@ export class PresenceRoom {
     url.searchParams.set("username", name);
     url.searchParams.set("serverId", serverId);
 
-    let response;
-    try {
-      response = await fetch(url, {
-        headers: {
-          "accept": "application/json",
-          "user-agent": "Runal-Presence/1.0"
+    for (let attempt = 0; attempt < 5; attempt++) {
+      if (attempt > 0) await delay(300);
+
+      let response;
+      try {
+        response = await fetch(url, {
+          headers: {
+            "accept": "application/json",
+            "cache-control": "no-store",
+            "user-agent": "Runal-Presence/1.0"
+          },
+          cf: {
+            cacheTtl: 0,
+            cacheEverything: false
+          }
+        });
+      } catch (error) {
+        console.error(`hasJoined fetch threw for ${name} (attempt ${attempt}):`, error);
+        continue;
+      }
+
+      if (!response.ok) {
+        const body = await response.text().catch(() => "<unreadable>");
+        console.warn(`hasJoined non-OK for ${name} (attempt ${attempt}): status=${response.status} body=${body}`);
+        continue;
+      }
+
+      try {
+        const text = await response.text();
+        if (!text) {
+          console.warn(`hasJoined returned empty body for ${name} (attempt ${attempt}, status=${response.status})`);
+          continue;
         }
-      });
-    } catch {
-      return null;
+        const profile = JSON.parse(text);
+        if (normalizeUuid(profile.id) !== uuid) {
+          console.warn(`hasJoined UUID mismatch for ${name}: expected=${uuid} got=${normalizeUuid(profile.id)}`);
+          return null;
+        }
+        if (String(profile.name).toLowerCase() !== name.toLowerCase()) {
+          console.warn(`hasJoined name mismatch: expected=${name} got=${profile.name}`);
+          return null;
+        }
+        console.log(`hasJoined verified ${name} on attempt ${attempt}`);
+        return profile;
+      } catch (error) {
+        console.error(`hasJoined response parse failed for ${name} (attempt ${attempt}):`, error);
+        return null;
+      }
     }
 
-    if (!response.ok) return null;
-
-    try {
-      const profile = await response.json();
-      if (normalizeUuid(profile.id) !== uuid) return null;
-      if (String(profile.name).toLowerCase() !== name.toLowerCase()) return null;
-      return profile;
-    } catch {
-      return null;
-    }
+    console.warn(`hasJoined exhausted all attempts for ${name}, uuid=${uuid}, serverId=${serverId}`);
+    return null;
   }
 
   webSocketClose() {

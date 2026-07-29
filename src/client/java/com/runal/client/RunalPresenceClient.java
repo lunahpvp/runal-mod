@@ -222,6 +222,11 @@ public final class RunalPresenceClient {
         @Override
         public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
             if (generation == GENERATION.get()) {
+                LOGGER.warn(
+                        "Presence socket closed ({}): {}",
+                        statusCode,
+                        reason == null || reason.isBlank() ? "no reason provided" : reason
+                );
                 socket = null;
                 ACTIVE_USERS.clear();
                 ACTIVE_NAMES.clear();

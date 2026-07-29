@@ -225,35 +225,35 @@ public class RunalScreen extends Screen {
     }
 
     private int clickGuiViewportWidth() {
-        //? if 26.1.2 {
-        return (int) (Minecraft.getInstance().getWindow().getScreenWidth() / getStandardGuiScale());
-        //?} else {
+        //? if 26.2 {
         /*return this.width;
-        *///?}
+        *///?} else {
+        return (int) (Minecraft.getInstance().getWindow().getScreenWidth() / getStandardGuiScale());
+        //?}
     }
 
     private int clickGuiViewportHeight() {
-        //? if 26.1.2 {
-        return (int) (Minecraft.getInstance().getWindow().getScreenHeight() / getStandardGuiScale());
-        //?} else {
+        //? if 26.2 {
         /*return this.height;
-        *///?}
+        *///?} else {
+        return (int) (Minecraft.getInstance().getWindow().getScreenHeight() / getStandardGuiScale());
+        //?}
     }
 
     private int interactionMouseX(double eventX) {
-        //? if 26.1.2 {
-        return scaledNvgMouseX();
-        //?} else {
+        //? if 26.2 {
         /*return (int) eventX;
-        *///?}
+        *///?} else {
+        return scaledNvgMouseX();
+        //?}
     }
 
     private int interactionMouseY(double eventY) {
-        //? if 26.1.2 {
-        return scaledNvgMouseY();
-        //?} else {
+        //? if 26.2 {
         /*return (int) eventY;
-        *///?}
+        *///?} else {
+        return scaledNvgMouseY();
+        //?}
     }
 
     private float easeOutQuart(float t) {
@@ -741,7 +741,7 @@ public class RunalScreen extends Screen {
     //? if 1.21.4 || 1.21.11 {
     /*@Override
     public void render(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks) {
-        renderContentLegacy(context, mouseX, mouseY, deltaTicks);
+        renderContentPortable(context, mouseX, mouseY, deltaTicks);
         super.render(context, mouseX, mouseY, deltaTicks);
     }
     *///?} else {
