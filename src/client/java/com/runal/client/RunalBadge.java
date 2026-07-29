@@ -31,7 +31,8 @@ public final class RunalBadge {
     public static Component append(Component name) {
         if (name == null || name.getString().contains(GLYPH)) return name;
 
-        MutableComponent result = Component.literal(GLYPH).withStyle(ICON_STYLE);
+        MutableComponent result = Component.empty();
+        result.append(Component.literal(GLYPH).withStyle(ICON_STYLE));
         result.append(Component.literal(" "));
         result.append(name.copy());
         return result;
