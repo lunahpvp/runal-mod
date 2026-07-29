@@ -10,7 +10,10 @@
 		"EntityGlowMixin",
 		"HidePlayersMixin",
 		"PlayerTabOverlayMixin",
-		"EntityNameTagMixin"
+		"EntityNameTagMixin",
+		"ChatCommandSuggestionsMixin",
+		"ChatScreenEmojiMixin",
+		"ChatComponentEmojiMixin"
 
 	],
 	"injectors": {
