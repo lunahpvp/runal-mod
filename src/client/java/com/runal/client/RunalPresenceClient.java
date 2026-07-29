@@ -14,7 +14,12 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.net.http.WebSocket;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -30,6 +35,8 @@ public final class RunalPresenceClient {
     private static final Logger LOGGER = LoggerFactory.getLogger("Runal Presence");
     private static final URI PRESENCE_URI =
             URI.create("wss://runal-presence.lake-cockroach.workers.dev/presence");
+    private static final String SESSION_SERVER_URL =
+            "https://sessionserver.mojang.com/session/minecraft/hasJoined";
     private static final long RECONNECT_DELAY_SECONDS = 5L;
 
     private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
@@ -43,6 +50,7 @@ public final class RunalPresenceClient {
     private static final Set<String> ACTIVE_NAMES = ConcurrentHashMap.newKeySet();
     private static final AtomicBoolean CONNECTING = new AtomicBoolean(false);
     private static final AtomicInteger GENERATION = new AtomicInteger();
+    private static final AtomicInteger SYNC_GENERATION = new AtomicInteger();
 
     private static volatile boolean connectionWanted;
     private static volatile WebSocket socket;
@@ -99,6 +107,7 @@ public final class RunalPresenceClient {
         CONNECTING.set(false);
         ACTIVE_USERS.clear();
         ACTIVE_NAMES.clear();
+        SYNC_GENERATION.incrementAndGet();
 
         WebSocket current = socket;
         socket = null;
@@ -159,23 +168,82 @@ public final class RunalPresenceClient {
                 return;
             }
             if ("auth_success".equals(action)) {
-                LOGGER.info("Authenticated with Runal presence");
+                LOGGER.info("Registered with Runal presence");
                 return;
             }
             if ("sync".equals(action)) {
-                JsonArray users = message.getAsJsonArray("users");
-                ACTIVE_USERS.clear();
-                ACTIVE_NAMES.clear();
-                for (JsonElement userElement : users) {
-                    JsonObject user = userElement.getAsJsonObject();
-                    ACTIVE_USERS.add(normalizeUuid(user.get("uuid").getAsString()));
-                    ACTIVE_NAMES.add(normalizeName(user.get("name").getAsString()));
-                }
-                LOGGER.info("Runal presence synced {} user(s)", ACTIVE_USERS.size());
+                verifySnapshot(message.getAsJsonArray("users"));
             }
         } catch (Exception error) {
             LOGGER.debug("Ignored invalid presence message: {}", error.getMessage());
         }
+    }
+
+    private static void verifySnapshot(JsonArray users) {
+        int syncGeneration = SYNC_GENERATION.incrementAndGet();
+        List<CompletableFuture<PresenceClaim>> checks = new ArrayList<>();
+
+        for (JsonElement userElement : users) {
+            try {
+                JsonObject user = userElement.getAsJsonObject();
+                String name = user.get("name").getAsString();
+                String uuid = normalizeUuid(user.get("uuid").getAsString());
+                String serverId = user.get("serverId").getAsString();
+                if (!name.matches("[A-Za-z0-9_]{1,16}")
+                        || !uuid.matches("[0-9a-f]{32}")
+                        || !serverId.matches("[0-9a-f]{40}")) {
+                    continue;
+                }
+                checks.add(verifyClaim(name, uuid, serverId)
+                        .thenApply(valid -> valid ? new PresenceClaim(uuid, name) : null));
+            } catch (Exception ignored) {
+                // Ignore malformed claims without dropping the rest of the snapshot.
+            }
+        }
+
+        CompletableFuture.allOf(checks.toArray(CompletableFuture[]::new))
+                .thenRun(() -> {
+                    if (syncGeneration != SYNC_GENERATION.get()) return;
+
+                    ACTIVE_USERS.clear();
+                    ACTIVE_NAMES.clear();
+                    for (CompletableFuture<PresenceClaim> check : checks) {
+                        PresenceClaim claim = check.join();
+                        if (claim == null) continue;
+                        ACTIVE_USERS.add(claim.uuid());
+                        ACTIVE_NAMES.add(normalizeName(claim.name()));
+                    }
+                    LOGGER.info("Runal presence verified {} user(s)", ACTIVE_USERS.size());
+                });
+    }
+
+    private static CompletableFuture<Boolean> verifyClaim(
+            String name,
+            String expectedUuid,
+            String serverId
+    ) {
+        URI uri = URI.create(SESSION_SERVER_URL
+                + "?username=" + name
+                + "&serverId=" + serverId);
+        HttpRequest request = HttpRequest.newBuilder(uri)
+                .timeout(Duration.ofSeconds(5))
+                .header("Accept", "application/json")
+                .header("User-Agent", "Runal/1.1")
+                .GET()
+                .build();
+
+        return HTTP_CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+                .thenApply(response -> {
+                    if (response.statusCode() != 200 || response.body().isBlank()) return false;
+                    try {
+                        JsonObject profile = JsonParser.parseString(response.body()).getAsJsonObject();
+                        return expectedUuid.equals(normalizeUuid(profile.get("id").getAsString()))
+                                && name.equalsIgnoreCase(profile.get("name").getAsString());
+                    } catch (Exception ignored) {
+                        return false;
+                    }
+                })
+                .exceptionally(error -> false);
     }
 
     private static String currentVersion() {
@@ -191,6 +259,9 @@ public final class RunalPresenceClient {
 
     private static String normalizeName(String name) {
         return name.toLowerCase();
+    }
+
+    private record PresenceClaim(String uuid, String name) {
     }
 
     private static final class Listener implements WebSocket.Listener {

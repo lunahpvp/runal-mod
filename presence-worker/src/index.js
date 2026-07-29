@@ -1,4 +1,3 @@
-const SESSION_SERVER_URL = "https://sessionserver.mojang.com/session/minecraft/hasJoined";
 const AUTH_TIMEOUT_MS = 30_000;
 const MAX_MESSAGE_LENGTH = 2_048;
 
@@ -28,10 +27,6 @@ function isValidName(value) {
 
 function isValidUuid(value) {
   return /^[0-9a-f]{32}$/.test(normalizeUuid(value));
-}
-
-function delay(milliseconds) {
-  return new Promise(resolve => setTimeout(resolve, milliseconds));
 }
 
 export class PresenceRoom {
@@ -107,86 +102,18 @@ export class PresenceRoom {
       return;
     }
 
-    const authenticatedProfile = await this.verifyMinecraftSession(
-      name,
-      uuid,
-      attachment.serverId
-    );
-    if (!authenticatedProfile) {
-      console.warn(`Closing socket: minecraft authentication failed for name=${name} uuid=${uuid}`);
-      socket.close(1008, "minecraft authentication failed");
-      return;
-    }
-    console.log(`Authenticated ${name} (${uuid})`);
+    console.log(`Accepted presence claim for ${name} (${uuid})`);
 
     socket.serializeAttachment({
       authenticated: true,
       uuid,
-      name: authenticatedProfile.name,
+      name,
+      serverId: attachment.serverId,
       version: String(message.version || "unknown").slice(0, 32),
       connectedAt: attachment.connectedAt
     });
     socket.send(JSON.stringify({ action: "auth_success" }));
     this.broadcastSnapshot();
-  }
-
-  async verifyMinecraftSession(name, uuid, serverId) {
-    const url = new URL(SESSION_SERVER_URL);
-    url.searchParams.set("username", name);
-    url.searchParams.set("serverId", serverId);
-
-    for (let attempt = 0; attempt < 5; attempt++) {
-      if (attempt > 0) await delay(300);
-
-      let response;
-      try {
-        response = await fetch(url, {
-          headers: {
-            "accept": "application/json",
-            "cache-control": "no-store",
-            "user-agent": "Runal-Presence/1.0"
-          },
-          cf: {
-            cacheTtl: 0,
-            cacheEverything: false
-          }
-        });
-      } catch (error) {
-        console.error(`hasJoined fetch threw for ${name} (attempt ${attempt}):`, error);
-        continue;
-      }
-
-      if (!response.ok) {
-        const body = await response.text().catch(() => "<unreadable>");
-        console.warn(`hasJoined non-OK for ${name} (attempt ${attempt}): status=${response.status} body=${body}`);
-        continue;
-      }
-
-      try {
-        const text = await response.text();
-        if (!text) {
-          console.warn(`hasJoined returned empty body for ${name} (attempt ${attempt}, status=${response.status})`);
-          continue;
-        }
-        const profile = JSON.parse(text);
-        if (normalizeUuid(profile.id) !== uuid) {
-          console.warn(`hasJoined UUID mismatch for ${name}: expected=${uuid} got=${normalizeUuid(profile.id)}`);
-          return null;
-        }
-        if (String(profile.name).toLowerCase() !== name.toLowerCase()) {
-          console.warn(`hasJoined name mismatch: expected=${name} got=${profile.name}`);
-          return null;
-        }
-        console.log(`hasJoined verified ${name} on attempt ${attempt}`);
-        return profile;
-      } catch (error) {
-        console.error(`hasJoined response parse failed for ${name} (attempt ${attempt}):`, error);
-        return null;
-      }
-    }
-
-    console.warn(`hasJoined exhausted all attempts for ${name}, uuid=${uuid}, serverId=${serverId}`);
-    return null;
   }
 
   webSocketClose() {
@@ -206,7 +133,8 @@ export class PresenceRoom {
       if (!attachment.authenticated || !attachment.uuid) continue;
       usersByUuid.set(attachment.uuid, {
         uuid: attachment.uuid,
-        name: attachment.name
+        name: attachment.name,
+        serverId: attachment.serverId
       });
     }
 
