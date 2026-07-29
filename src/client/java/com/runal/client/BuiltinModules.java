@@ -10,7 +10,7 @@ public class BuiltinModules {
 
     public static void registerAll() {
         ModuleManager.register(new Module() {
-            private final List<ModuleSetting> settings = List.of(new KeybindModuleSetting(RunalClient.getAutoSprintKey()));
+            private final List<ModuleSetting> settings = List.of(new KeybindModuleSetting(RunalKeybinds.autoSprint()));
             public String getName() { return "Auto Sprint"; }
             public String getDescription() { return "Automatically sprints while moving forward."; }
             public String getCategory() { return "Combat"; }
@@ -36,7 +36,7 @@ public class BuiltinModules {
                             new ToggleModuleSetting("Sound", () -> LowHealthWarning.soundEnabled, v -> LowHealthWarning.soundEnabled = v),
                             new SliderModuleSetting("Volume", 0.1f, 2.0f, 0.1f, () -> LowHealthWarning.soundVolume, v -> LowHealthWarning.soundVolume = v)
                     )),
-                    new KeybindModuleSetting(RunalClient.getLowHealthToggleKey())
+                    new KeybindModuleSetting(RunalKeybinds.lowHealth())
             );
             public String getName() { return "Health Indicator"; }
             public String getDescription() { return "Warns you when your health drops below a threshold."; }
@@ -51,7 +51,7 @@ public class BuiltinModules {
                     new ColorModuleSetting("Player Color", () -> HitboxesState.INSTANCE.playerColor, v -> HitboxesState.INSTANCE.playerColor = v),
                     new ColorModuleSetting("Entity Color", () -> HitboxesState.INSTANCE.entityColor, v -> HitboxesState.INSTANCE.entityColor = v),
                     new SliderModuleSetting("Line Width", 1.0f, 5.0f, 0.5f, () -> HitboxesState.INSTANCE.lineWidth, v -> HitboxesState.INSTANCE.lineWidth = v),
-                    new KeybindModuleSetting(RunalClient.getHitboxesKey())
+                    new KeybindModuleSetting(RunalKeybinds.hitboxes())
             );
             public String getName() { return "Hitboxes"; }
             public String getDescription() { return "Renders hitboxes around players and entities."; }
@@ -62,7 +62,7 @@ public class BuiltinModules {
         });
 
         ModuleManager.register(new Module() {
-            private final List<ModuleSetting> settings = List.of(new KeybindModuleSetting(RunalClient.getFullbrightKey()));
+            private final List<ModuleSetting> settings = List.of(new KeybindModuleSetting(RunalKeybinds.fullbright()));
             public String getName() { return "Fullbright"; }
             public String getDescription() { return "Removes darkness so everything is fully lit."; }
             public String getCategory() { return "Visual"; }
@@ -72,7 +72,7 @@ public class BuiltinModules {
         });
 
         ModuleManager.register(new Module() {
-            private final List<ModuleSetting> settings = List.of(new KeybindModuleSetting(RunalClient.getHidePlayersKey()));
+            private final List<ModuleSetting> settings = List.of(new KeybindModuleSetting(RunalKeybinds.hidePlayers()));
             public String getName() { return "Hide Players"; }
             public String getDescription() { return "Hides other players from rendering."; }
             public String getCategory() { return "Visual"; }
@@ -107,7 +107,7 @@ public class BuiltinModules {
                     new ToggleModuleSetting("Epic", () -> AutoGGState.INSTANCE.triggerEpic, v -> AutoGGState.INSTANCE.triggerEpic = v),
                     new ToggleModuleSetting("Legendary", () -> AutoGGState.INSTANCE.triggerLegendary, v -> AutoGGState.INSTANCE.triggerLegendary = v),
                     new ToggleModuleSetting("Mythical", () -> AutoGGState.INSTANCE.triggerMythical, v -> AutoGGState.INSTANCE.triggerMythical = v),
-                    new KeybindModuleSetting(RunalClient.getAutoGGKey())
+                    new KeybindModuleSetting(RunalKeybinds.autoGG())
             );
             public String getName() { return "Auto GG"; }
             public String getDescription() { return "Announces a message when a player finds an important item."; }
@@ -125,7 +125,7 @@ public class BuiltinModules {
                     new ToggleModuleSetting("Trash Epic", () -> AutoTrashState.INSTANCE.trashEpic, v -> AutoTrashState.INSTANCE.trashEpic = v),
                     new ToggleModuleSetting("Trash Legendary", () -> AutoTrashState.INSTANCE.trashLegendary, v -> AutoTrashState.INSTANCE.trashLegendary = v),
                     new ToggleModuleSetting("Trash Mythical", () -> AutoTrashState.INSTANCE.trashMythical, v -> AutoTrashState.INSTANCE.trashMythical = v),
-                    new KeybindModuleSetting(RunalClient.getAutoTrashKey())
+                    new KeybindModuleSetting(RunalKeybinds.autoTrash())
             );
             public String getName() { return "Auto Trash"; }
             public String getDescription() { return "Automatically discards shards."; }
@@ -142,7 +142,7 @@ public class BuiltinModules {
                     new ToggleModuleSetting("Hide Chestplate", () -> HideArmorState.INSTANCE.hideChestplate, v -> HideArmorState.INSTANCE.hideChestplate = v),
                     new ToggleModuleSetting("Hide Leggings", () -> HideArmorState.INSTANCE.hideLeggings, v -> HideArmorState.INSTANCE.hideLeggings = v),
                     new ToggleModuleSetting("Hide Boots", () -> HideArmorState.INSTANCE.hideBoots, v -> HideArmorState.INSTANCE.hideBoots = v),
-                    new KeybindModuleSetting(RunalClient.getHideArmorKey())
+                    new KeybindModuleSetting(RunalKeybinds.hideArmor())
             );
             public String getName() { return "Hide Armor"; }
             public String getDescription() { return "Hides your equipped armor pieces from rendering."; }
@@ -185,7 +185,7 @@ public class BuiltinModules {
                             new SliderModuleSetting("Width", 20f, 160f, 1f, () -> (float) state.width, v -> state.width = Math.round(v)),
                             new SliderModuleSetting("Height", 3f, 24f, 1f, () -> (float) state.height, v -> state.height = Math.round(v))
                     )),
-                    new KeybindModuleSetting(RunalClient.getHealthBarKey())
+                    new KeybindModuleSetting(RunalKeybinds.healthBar())
             );
             public String getName() { return "Health Bar"; }
             public String getDescription() { return "Displays a customizable health bar above players."; }
@@ -201,7 +201,7 @@ public class BuiltinModules {
                     new SliderModuleSetting("X Scale", 0.1f, 3.0f, 0.1f, () -> PlayerScaleState.INSTANCE.getXScale(), v -> PlayerScaleState.INSTANCE.setXScale(v)),
                     new SliderModuleSetting("Y Scale", 0.1f, 3.0f, 0.1f, () -> PlayerScaleState.INSTANCE.getYScale(), v -> PlayerScaleState.INSTANCE.setYScale(v)),
                     new SliderModuleSetting("Z Scale", 0.1f, 3.0f, 0.1f, () -> PlayerScaleState.INSTANCE.getZScale(), v -> PlayerScaleState.INSTANCE.setZScale(v)),
-                    new KeybindModuleSetting(RunalClient.getPlayerScaleKey())
+                    new KeybindModuleSetting(RunalKeybinds.playerScale())
             );
             public String getName() { return "Player Size"; }
             public String getDescription() { return "Scales your player model up or down."; }
@@ -347,9 +347,10 @@ public class BuiltinModules {
             private final List<ModuleSetting> settings = List.of(
                     new ToggleModuleSetting("Chat Notifications", () -> RunalSettings.chatNotifications, v -> RunalSettings.chatNotifications = v),
                     new ColorModuleSetting("Accent Color", () -> RunalSettings.accentColor, v -> RunalSettings.accentColor = v),
+                    new ToggleModuleSetting("Rounded Menu", () -> RunalSettings.roundedPanelBottoms, v -> RunalSettings.roundedPanelBottoms = v),
                     new EnumModuleSetting("Cooldown Display", List.of("Percent", "Seconds"), () -> RunalSettings.cooldownDisplayMode, v -> RunalSettings.cooldownDisplayMode = v),
                     new ButtonModuleSetting("HUD Editor", "Open", () -> Minecraft.getInstance().setScreen(new HudEditorScreen())),
-                    new KeybindModuleSetting(RunalClient.getOpenMenuKey())
+                    new KeybindModuleSetting(RunalKeybinds.openMenu())
             );
             public String getName() { return "Click GUI"; }
             public String getDescription() { return "Settings for the click GUI itself."; }
@@ -374,7 +375,7 @@ public class BuiltinModules {
                     new ToggleModuleSetting("Glow", () -> TeamTrackerState.INSTANCE.glowEnabled, v -> TeamTrackerState.INSTANCE.glowEnabled = v),
                     new ColorModuleSetting("Marker Color", () -> TeamTrackerState.INSTANCE.markerColor, v -> TeamTrackerState.INSTANCE.markerColor = v),
                     new ButtonModuleSetting("Team Selector", "Open", () -> Minecraft.getInstance().setScreen(new TeamTrackerScreen())),
-                    new KeybindModuleSetting(RunalClient.getTeamTrackerKey())
+                    new KeybindModuleSetting(RunalKeybinds.teamTracker())
             );
             public String getName() { return "Teammate Track"; }
             public String getDescription() { return "Tracks and highlights your party/team members."; }
@@ -388,8 +389,8 @@ public class BuiltinModules {
             private final List<ModuleSetting> settings = List.of(
                     new ToggleModuleSetting("Show Beams", () -> WaypointManagerState.INSTANCE.showBeams, v -> WaypointManagerState.INSTANCE.showBeams = v),
                     new ButtonModuleSetting("Waypoint Manager", "Open", () -> Minecraft.getInstance().setScreen(new WaypointManagerScreen())),
-                    new KeybindModuleSetting(RunalClient.getWaypointManagerKey()),
-                    new KeybindModuleSetting(RunalClient.getNewWaypointKey())
+                    new KeybindModuleSetting(RunalKeybinds.waypointManager()),
+                    new KeybindModuleSetting(RunalKeybinds.newWaypoint())
             );
             public String getName() { return "Waypoints"; }
             public String getDescription() { return "Manage and display custom waypoints in the world."; }
@@ -420,7 +421,7 @@ public class BuiltinModules {
             int idx = i;
             settings.add(new SettingGroup("Slot " + (i + 1), List.of(
                     new EnumModuleSetting("Row", rowOptions, () -> HotbarSwapState.INSTANCE.rows[idx], v -> HotbarSwapState.INSTANCE.rows[idx] = v),
-                    new KeybindModuleSetting(RunalClient.getHotbarSwapKey(idx))
+                    new KeybindModuleSetting(RunalKeybinds.hotbarSwap(idx))
             )));
         }
         return settings;
@@ -432,7 +433,7 @@ public class BuiltinModules {
             int idx = i;
             settings.add(new SettingGroup("Slot " + (i + 1), List.of(
                     new TextModuleSetting("Command", () -> CommandBindState.INSTANCE.commands[idx], v -> CommandBindState.INSTANCE.commands[idx] = v),
-                    new KeybindModuleSetting(RunalClient.getCommandBindKey(idx))
+                    new KeybindModuleSetting(RunalKeybinds.commandBind(idx))
             )));
         }
         return settings;

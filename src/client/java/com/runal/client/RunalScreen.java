@@ -51,6 +51,7 @@ public class RunalScreen extends Screen {
     private static final int SUB_ROW_HEIGHT = 22;
     private static final int HEADER_HEIGHT = 32;
     private static final int PANEL_RADIUS = 0;
+    private static final int ROUNDED_MENU_RADIUS = 6;
     private static final int ROW_RADIUS = 6;
     private static final int PANEL_BOTTOM_MARGIN = 44;
     private static final int SCROLL_SPEED = 12;
@@ -84,7 +85,7 @@ public class RunalScreen extends Screen {
     /** Melinoe's exact ClickGUI.gray26 - flat panel/header/off-row fill for the NVG chrome. */
     private static final int COLOR_GRAY26 = 0xFF1A1A1A;
 
-    private static final long OPEN_ANIM_DURATION_MS = 480L;
+    private static final long OPEN_ANIM_DURATION_MS = 750L;
     private long openTimeMs = 0L;
 
     private EditBox searchBox;
@@ -186,9 +187,9 @@ public class RunalScreen extends Screen {
         //?}
     }
 
-    private float easeOutCubic(float t) {
-        float f = t - 1f;
-        return f * f * f + 1f;
+    private float smoothStep(float t) {
+        float clamped = Math.max(0f, Math.min(1f, t));
+        return clamped * clamped * (3f - 2f * clamped);
     }
 
     /**
@@ -403,21 +404,21 @@ public class RunalScreen extends Screen {
     }
 
     private void drawPanelShadow(GuiGraphicsExtractor context, int x, int y, int w, int h) {
-        drawRoundedRect(context, x + 3, y + 5, w, h, 0x36000000, PANEL_RADIUS + 1);
-        drawRoundedRect(context, x + 1, y + 2, w, h, 0x26000000, PANEL_RADIUS);
+        int radius = menuPanelRadius();
+        drawRoundedRect(context, x - 5, y - 4, w + 10, h + 10, 0x1C000000, radius > 0 ? radius + 5 : 0);
+        drawRoundedRect(context, x - 2, y - 1, w + 4, h + 4, 0x30000000, radius > 0 ? radius + 2 : 0);
+        drawRoundedRect(context, x + 3, y + 5, w, h, 0x50000000, radius > 0 ? radius + 1 : 0);
     }
 
     private void drawPanelChrome(GuiGraphicsExtractor context, int x, int y, int w, int h) {
+        int radius = menuPanelRadius();
         drawPanelShadow(context, x, y, w, h);
-        drawRoundedRect(context, x, y, w, h, COLOR_PANEL_BG, PANEL_RADIUS);
-        drawRoundedOutline(context, x, y, w, h, PANEL_RADIUS, COLOR_PANEL_BORDER);
-        if (!RunalSettings.roundedPanelBottoms) {
-            int bottomY = y + h - PANEL_RADIUS - 1;
-            context.fill(x, bottomY, x + w, y + h, COLOR_PANEL_BG);
-            context.fill(x, y + h - 1, x + w, y + h, COLOR_PANEL_BORDER);
-            context.fill(x, bottomY, x + 1, y + h, COLOR_PANEL_BORDER);
-            context.fill(x + w - 1, bottomY, x + w, y + h, COLOR_PANEL_BORDER);
-        }
+        drawRoundedRect(context, x, y, w, h, COLOR_PANEL_BG, radius);
+        drawRoundedOutline(context, x, y, w, h, radius, COLOR_PANEL_BORDER);
+    }
+
+    private int menuPanelRadius() {
+        return RunalSettings.roundedPanelBottoms ? ROUNDED_MENU_RADIUS : 0;
     }
 
     private void drawHeader(GuiGraphicsExtractor context, int x, int y, int w, int h, boolean hovered, boolean collapsed) {
@@ -442,6 +443,16 @@ public class RunalScreen extends Screen {
     private void drawSubRow(GuiGraphicsExtractor context, int x, int y, int w, int h, int color, float expand) {
         int inset = (int) lerp(10f, 5f, expand);
         drawRoundedRect(context, x + inset, y + 1, w - inset - 4, h - 2, color, ROW_RADIUS - 1);
+    }
+
+    private void drawSettingSeparator(
+            GuiGraphicsExtractor context,
+            int x,
+            int y,
+            int width
+    ) {
+        context.fill(x + 10, y, x + width - 10, y + 1, 0x30FFFFFF);
+        context.fill(x + 10, y, x + 38, y + 1, alpha(accentColor(), 0.60f));
     }
 
     private void drawSlider(GuiGraphicsExtractor context, SliderModuleSetting slider, int x, int y, int h) {
@@ -750,7 +761,7 @@ public class RunalScreen extends Screen {
 
         long elapsed = System.currentTimeMillis() - openTimeMs;
         float openProgress = Math.min(1f, elapsed / (float) OPEN_ANIM_DURATION_MS);
-        float easedOpen = easeOutCubic(openProgress);
+        float easedOpen = smoothStep(openProgress);
         float scale = 0.88f + 0.12f * easedOpen;
 
         //? if 1.21.4 {
@@ -834,6 +845,9 @@ public class RunalScreen extends Screen {
                         boolean listening = setting instanceof KeybindModuleSetting keybind && keybind.isListening();
                         int subColor = listening ? alpha(accentColor(), 0.25f) : (subHovered ? COLOR_SUB_ROW_HOVER : COLOR_SUB_ROW);
                         drawSubRow(context, panel.x, rowY, COLUMN_WIDTH, allowedHeight, subColor, expand);
+                        if (setting instanceof SettingGroup) {
+                            drawSettingSeparator(context, panel.x, rowY, COLUMN_WIDTH);
+                        }
 
                         if (allowedHeight >= 9) {
                             if (setting instanceof ColorModuleSetting colorSetting && allowedHeight >= SUB_ROW_HEIGHT * 2) {
@@ -932,7 +946,7 @@ public class RunalScreen extends Screen {
 
         long elapsed = System.currentTimeMillis() - openTimeMs;
         float openProgress = Math.min(1f, elapsed / (float) OPEN_ANIM_DURATION_MS);
-        float openScale = 0.20f + 0.80f * easeOutCubic(openProgress);
+        float openScale = 0.20f + 0.80f * smoothStep(openProgress);
         float portableScale = getPortableGuiScale();
         int viewportWidth = clickGuiViewportWidth();
         int viewportHeight = clickGuiViewportHeight();
@@ -968,8 +982,16 @@ public class RunalScreen extends Screen {
             panel.scroll = Math.max(0, Math.min(panel.scroll, maxScroll));
 
             int shadowHeight = collapsed ? HEADER_HEIGHT + 10 : panelHeight;
-            context.fill(panel.x + 3, panel.y + 4, panel.x + COLUMN_WIDTH + 3, panel.y + shadowHeight + 4, 0x42000000);
-            context.fill(panel.x, panel.y, panel.x + COLUMN_WIDTH, panel.y + HEADER_HEIGHT, COLOR_GRAY26);
+            drawPortablePanelShadow(context, panel.x, panel.y, COLUMN_WIDTH, shadowHeight);
+            drawPortablePanelCap(
+                    context,
+                    panel.x,
+                    panel.y,
+                    COLUMN_WIDTH,
+                    HEADER_HEIGHT,
+                    COLOR_GRAY26,
+                    true
+            );
             drawPortableCenteredText(
                     context,
                     panel.category,
@@ -986,12 +1008,14 @@ public class RunalScreen extends Screen {
             int capColor = (!anyExpanded && lastVisibleEnabled) ? accentColor() : COLOR_GRAY26;
 
             if (categoryOpen <= 0.025f) {
-                context.fill(
+                drawPortablePanelCap(
+                        context,
                         panel.x,
                         panel.y + HEADER_HEIGHT,
-                        panel.x + COLUMN_WIDTH,
-                        panel.y + HEADER_HEIGHT + 10,
-                        capColor
+                        COLUMN_WIDTH,
+                        10,
+                        capColor,
+                        false
                 );
                 continue;
             }
@@ -1055,6 +1079,9 @@ public class RunalScreen extends Screen {
                         boolean listening = setting instanceof KeybindModuleSetting keybind && keybind.isListening();
 
                         context.fill(panel.x, rowY, panel.x + COLUMN_WIDTH, rowY + allowedHeight, COLOR_GRAY26);
+                        if (setting instanceof SettingGroup) {
+                            drawSettingSeparator(context, panel.x, rowY, COLUMN_WIDTH);
+                        }
                         if (subHovered) {
                             context.fill(panel.x, rowY, panel.x + COLUMN_WIDTH, rowY + allowedHeight, 0x18FFFFFF);
                             if (!setting.getDescription().isEmpty()) {
@@ -1135,7 +1162,15 @@ public class RunalScreen extends Screen {
 
             context.disableScissor();
             int capY = Math.min(rowY, contentBottom);
-            context.fill(panel.x, capY, panel.x + COLUMN_WIDTH, capY + 10, capColor);
+            drawPortablePanelCap(
+                    context,
+                    panel.x,
+                    capY,
+                    COLUMN_WIDTH,
+                    10,
+                    capColor,
+                    false
+            );
             if (maxScroll > 0) drawScrollbar(context, panel, panelHeight, fullHeight);
         }
 
@@ -1169,6 +1204,63 @@ public class RunalScreen extends Screen {
 
         drawSearchChrome(context, minecraftMouseX, minecraftMouseY);
         drawResetButton(context, minecraftMouseX, minecraftMouseY);
+    }
+
+    private void drawPortablePanelShadow(
+            GuiGraphicsExtractor context,
+            int x,
+            int y,
+            int width,
+            int height
+    ) {
+        int radius = menuPanelRadius();
+        drawRoundedRect(
+                context,
+                x - 5,
+                y - 4,
+                width + 10,
+                height + 10,
+                0x1C000000,
+                radius > 0 ? radius + 5 : 0
+        );
+        drawRoundedRect(
+                context,
+                x - 2,
+                y - 1,
+                width + 4,
+                height + 4,
+                0x30000000,
+                radius > 0 ? radius + 2 : 0
+        );
+        drawRoundedRect(
+                context,
+                x + 3,
+                y + 5,
+                width,
+                height,
+                0x50000000,
+                radius > 0 ? radius + 1 : 0
+        );
+    }
+
+    private void drawPortablePanelCap(
+            GuiGraphicsExtractor context,
+            int x,
+            int y,
+            int width,
+            int height,
+            int color,
+            boolean top
+    ) {
+        int radius = menuPanelRadius();
+        drawRoundedRect(context, x, y, width, height, color, radius);
+        if (radius == 0) return;
+
+        if (top) {
+            context.fill(x, y + height - radius, x + width, y + height, color);
+        } else {
+            context.fill(x, y, x + width, y + radius, color);
+        }
     }
 
     private void drawSettingControlPortable(
@@ -1319,7 +1411,7 @@ public class RunalScreen extends Screen {
 
         long elapsed = System.currentTimeMillis() - openTimeMs;
         float openProgress = Math.min(1f, elapsed / (float) OPEN_ANIM_DURATION_MS);
-        float easedOpen = easeOutCubic(openProgress);
+        float easedOpen = smoothStep(openProgress);
         float scale = 0.20f + 0.80f * easedOpen;
 
         //? if 1.21.4 {
@@ -1446,6 +1538,9 @@ public class RunalScreen extends Screen {
 
                         if (allowedHeight >= 9) {
                             int settingRowY = rowY;
+                            if (setting instanceof SettingGroup) {
+                                nvg.add(() -> drawSettingSeparatorNVG(px, settingRowY, COLUMN_WIDTH));
+                            }
                             if (setting instanceof ColorModuleSetting colorSetting) {
                                 // No hex readout on the collapsed row - matches Melinoe's ColorSetting.kt,
                                 // which only shows label + swatch until the picker itself is opened.
@@ -1588,21 +1683,28 @@ public class RunalScreen extends Screen {
 
     /** Header cap: rounded top corners only, flat fill - matches Melinoe's Panel.kt exactly. */
     private void drawPanelHeaderCapNVG(int x, int y, int w, int h) {
-        NVGRenderer.halfRoundedRect(x, y, w, h, COLOR_GRAY26, PANEL_RADIUS, true);
+        NVGRenderer.halfRoundedRect(x, y, w, h, COLOR_GRAY26, menuPanelRadius(), true);
     }
 
     /** Bottom cap: rounded bottom corners only, colored by whether the last module is on. */
     private void drawPanelBottomCapNVG(int x, int y, int w, int h, int color) {
-        NVGRenderer.halfRoundedRect(x, y, w, h, color, PANEL_RADIUS, false);
+        NVGRenderer.halfRoundedRect(x, y, w, h, color, menuPanelRadius(), false);
     }
 
     private void drawPanelShadowNVG(int x, int y, int w, int h) {
-        NVGRenderer.dropShadow(x, y, w, h, 10f, 3f, PANEL_RADIUS);
+        int radius = menuPanelRadius();
+        NVGRenderer.dropShadow(x + 3, y + 4, w, h, 16f, 4f, radius);
+        NVGRenderer.rect(x + 3, y + 5, w, h, 0x50000000, radius);
     }
 
     /** Flat, seamless module row - no radius, no border, no glow. Matches ModuleButton.kt. */
     private void drawModuleRowNVG(int x, int y, int w, int h, int color) {
         NVGRenderer.rect(x, y, w, h, color);
+    }
+
+    private void drawSettingSeparatorNVG(int x, int y, int width) {
+        NVGRenderer.rect(x + 10, y, width - 20, 1, 0x30FFFFFF);
+        NVGRenderer.rect(x + 10, y, 28, 1, alpha(accentColor(), 0.60f));
     }
 
     /** Toggle/color/group controls as flat square vector shapes - no radius. */
