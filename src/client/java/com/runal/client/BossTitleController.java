@@ -34,9 +34,14 @@ public class BossTitleController {
 
     private static final int DISPLAY_TICKS = 4 * 20;
 
-    private static final Pattern BOSS_LINE_PATTERN = buildPattern();
+    private static final Pattern SCEPTER_BOSS_LINE_PATTERN = buildScepterPattern();
+    private static final Pattern MAGE_RPG_BOSS_LINE_PATTERN = Pattern.compile(
+            "^(?:\\[[^\\]]*]\\s*)*\\[BOSS]\\s+(.+?)\\s+"
+                    + "\\[Lvl\\s+[^\\]]+]\\s*(?:»|:|>)\\s*(.+)$",
+            Pattern.CASE_INSENSITIVE
+    );
 
-    private static Pattern buildPattern() {
+    private static Pattern buildScepterPattern() {
         StringBuilder names = new StringBuilder();
         for (int i = 0; i < BOSS_NAMES.length; i++) {
             if (i > 0) names.append('|');
@@ -65,8 +70,11 @@ public class BossTitleController {
     private static void handleMessage(String text) {
         if (text.isEmpty()) return;
 
-        Matcher matcher = BOSS_LINE_PATTERN.matcher(text);
-        if (!matcher.matches()) return;
+        Matcher matcher = SCEPTER_BOSS_LINE_PATTERN.matcher(text);
+        if (!matcher.matches()) {
+            matcher = MAGE_RPG_BOSS_LINE_PATTERN.matcher(text);
+            if (!matcher.matches()) return;
+        }
 
         BossTitleState.currentBossName = matcher.group(1);
         BossTitleState.currentText = firstWords(matcher.group(2), MAX_WORDS);
