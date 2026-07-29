@@ -40,6 +40,7 @@ public final class RunalPresenceClient {
                 return thread;
             });
     private static final Set<String> ACTIVE_USERS = ConcurrentHashMap.newKeySet();
+    private static final Set<String> ACTIVE_NAMES = ConcurrentHashMap.newKeySet();
     private static final AtomicBoolean CONNECTING = new AtomicBoolean(false);
     private static final AtomicInteger GENERATION = new AtomicInteger();
 
@@ -57,8 +58,16 @@ public final class RunalPresenceClient {
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> disconnect());
     }
 
-    public static boolean isActiveUser(UUID uuid) {
-        return uuid != null && ACTIVE_USERS.contains(normalizeUuid(uuid.toString()));
+    public static boolean isActiveUser(UUID uuid, String name) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player != null) {
+            if (uuid != null && uuid.equals(client.player.getUUID())) return true;
+            if (name != null && normalizeName(name).equals(
+                    normalizeName(client.player.getGameProfile().name())
+            )) return true;
+        }
+        return (uuid != null && ACTIVE_USERS.contains(normalizeUuid(uuid.toString())))
+                || (name != null && ACTIVE_NAMES.contains(normalizeName(name)));
     }
 
     private static void connect() {
@@ -71,7 +80,7 @@ public final class RunalPresenceClient {
                 .whenComplete((openedSocket, error) -> {
                     CONNECTING.set(false);
                     if (error != null) {
-                        LOGGER.debug("Presence connection failed: {}", error.getMessage());
+                        LOGGER.warn("Presence connection failed: {}", error.getMessage());
                         scheduleReconnect(generation);
                         return;
                     }
@@ -80,6 +89,7 @@ public final class RunalPresenceClient {
                         return;
                     }
                     socket = openedSocket;
+                    LOGGER.info("Connected to Runal presence");
                 });
     }
 
@@ -88,6 +98,7 @@ public final class RunalPresenceClient {
         GENERATION.incrementAndGet();
         CONNECTING.set(false);
         ACTIVE_USERS.clear();
+        ACTIVE_NAMES.clear();
 
         WebSocket current = socket;
         socket = null;
@@ -147,13 +158,20 @@ public final class RunalPresenceClient {
                 authenticate(webSocket, message.get("serverId").getAsString());
                 return;
             }
+            if ("auth_success".equals(action)) {
+                LOGGER.info("Authenticated with Runal presence");
+                return;
+            }
             if ("sync".equals(action)) {
                 JsonArray users = message.getAsJsonArray("users");
                 ACTIVE_USERS.clear();
+                ACTIVE_NAMES.clear();
                 for (JsonElement userElement : users) {
                     JsonObject user = userElement.getAsJsonObject();
                     ACTIVE_USERS.add(normalizeUuid(user.get("uuid").getAsString()));
+                    ACTIVE_NAMES.add(normalizeName(user.get("name").getAsString()));
                 }
+                LOGGER.info("Runal presence synced {} user(s)", ACTIVE_USERS.size());
             }
         } catch (Exception error) {
             LOGGER.debug("Ignored invalid presence message: {}", error.getMessage());
@@ -169,6 +187,10 @@ public final class RunalPresenceClient {
 
     private static String normalizeUuid(String uuid) {
         return uuid.replace("-", "").toLowerCase();
+    }
+
+    private static String normalizeName(String name) {
+        return name.toLowerCase();
     }
 
     private static final class Listener implements WebSocket.Listener {
@@ -202,6 +224,7 @@ public final class RunalPresenceClient {
             if (generation == GENERATION.get()) {
                 socket = null;
                 ACTIVE_USERS.clear();
+                ACTIVE_NAMES.clear();
                 scheduleReconnect(generation);
             }
             return WebSocket.Listener.super.onClose(webSocket, statusCode, reason);
@@ -212,7 +235,8 @@ public final class RunalPresenceClient {
             if (generation == GENERATION.get()) {
                 socket = null;
                 ACTIVE_USERS.clear();
-                LOGGER.debug("Presence socket error: {}", error.getMessage());
+                ACTIVE_NAMES.clear();
+                LOGGER.warn("Presence socket error: {}", error.getMessage());
                 scheduleReconnect(generation);
             }
         }

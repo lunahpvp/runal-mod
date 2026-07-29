@@ -19,8 +19,11 @@ public abstract class EntityNameTagMixin {
             Entity entity,
             CallbackInfoReturnable<Component> cir
     ) {
-        if (!(entity instanceof Player)) return;
-        if (!RunalPresenceClient.isActiveUser(entity.getUUID())) return;
+        if (!(entity instanceof Player player)) return;
+        if (!RunalPresenceClient.isActiveUser(
+                entity.getUUID(),
+                player.getGameProfile().name()
+        )) return;
         cir.setReturnValue(RunalBadge.append(cir.getReturnValue()));
     }
 }

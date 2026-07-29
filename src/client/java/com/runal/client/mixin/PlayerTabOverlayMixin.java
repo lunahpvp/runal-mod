@@ -18,7 +18,10 @@ public abstract class PlayerTabOverlayMixin {
             PlayerInfo playerInfo,
             CallbackInfoReturnable<Component> cir
     ) {
-        if (!RunalPresenceClient.isActiveUser(playerInfo.getProfile().id())) return;
+        if (!RunalPresenceClient.isActiveUser(
+                playerInfo.getProfile().id(),
+                playerInfo.getProfile().name()
+        )) return;
         cir.setReturnValue(RunalBadge.append(cir.getReturnValue()));
     }
 }
