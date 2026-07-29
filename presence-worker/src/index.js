@@ -1,4 +1,5 @@
 const AUTH_TIMEOUT_MS = 30_000;
+const MIN_REFRESH_INTERVAL_MS = 10_000;
 const MAX_MESSAGE_LENGTH = 2_048;
 
 function json(data, status = 200) {
@@ -75,9 +76,31 @@ export class PresenceRoom {
     }
 
     const attachment = socket.deserializeAttachment() || {};
-    if (attachment.authenticated) {
+    const isRefreshResponse = attachment.authenticated
+      && message.action === "auth_response"
+      && attachment.pendingServerId;
+
+    if (attachment.authenticated && !isRefreshResponse) {
       if (message.action === "ping") {
         socket.send(JSON.stringify({ action: "pong" }));
+      } else if (message.action === "refresh") {
+        const now = Date.now();
+        const lastRefreshAt = Number(
+          attachment.lastRefreshAt || attachment.connectedAt || 0
+        );
+        if (now - lastRefreshAt < MIN_REFRESH_INTERVAL_MS) return;
+
+        const pendingServerId = randomServerId();
+        socket.serializeAttachment({
+          ...attachment,
+          pendingServerId,
+          refreshStartedAt: now,
+          lastRefreshAt: now
+        });
+        socket.send(JSON.stringify({
+          action: "auth_request",
+          serverId: pendingServerId
+        }));
       }
       return;
     }
@@ -88,7 +111,10 @@ export class PresenceRoom {
       return;
     }
 
-    if (Date.now() - Number(attachment.connectedAt || 0) > AUTH_TIMEOUT_MS) {
+    const challengeStartedAt = isRefreshResponse
+      ? attachment.refreshStartedAt
+      : attachment.connectedAt;
+    if (Date.now() - Number(challengeStartedAt || 0) > AUTH_TIMEOUT_MS) {
       console.warn("Closing socket: authentication expired before auth_response arrived");
       socket.close(1008, "authentication expired");
       return;
@@ -96,21 +122,27 @@ export class PresenceRoom {
 
     const name = message.name;
     const uuid = normalizeUuid(message.uuid);
-    if (!isValidName(name) || !isValidUuid(uuid) || !attachment.serverId) {
-      console.warn(`Closing socket: invalid identity name=${JSON.stringify(name)} uuid=${JSON.stringify(message.uuid)} serverId=${attachment.serverId}`);
+    const serverId = isRefreshResponse
+      ? attachment.pendingServerId
+      : attachment.serverId;
+    const identityChanged = isRefreshResponse
+      && (uuid !== attachment.uuid || name !== attachment.name);
+    if (!isValidName(name) || !isValidUuid(uuid) || !serverId || identityChanged) {
+      console.warn(`Closing socket: invalid identity name=${JSON.stringify(name)} uuid=${JSON.stringify(message.uuid)} serverId=${serverId}`);
       socket.close(1008, "invalid identity");
       return;
     }
 
-    console.log(`Accepted presence claim for ${name} (${uuid})`);
+    console.log(`${isRefreshResponse ? "Refreshed" : "Accepted"} presence claim for ${name} (${uuid})`);
 
     socket.serializeAttachment({
       authenticated: true,
       uuid,
       name,
-      serverId: attachment.serverId,
+      serverId,
       version: String(message.version || "unknown").slice(0, 32),
-      connectedAt: attachment.connectedAt
+      connectedAt: attachment.connectedAt,
+      lastRefreshAt: Date.now()
     });
     socket.send(JSON.stringify({ action: "auth_success" }));
     this.broadcastSnapshot();

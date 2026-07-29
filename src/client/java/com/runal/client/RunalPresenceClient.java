@@ -38,6 +38,7 @@ public final class RunalPresenceClient {
     private static final String SESSION_SERVER_URL =
             "https://sessionserver.mojang.com/session/minecraft/hasJoined";
     private static final long RECONNECT_DELAY_SECONDS = 5L;
+    private static final long CLAIM_REFRESH_SECONDS = 15L;
 
     private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
     private static final ScheduledExecutorService SCHEDULER =
@@ -109,7 +110,6 @@ public final class RunalPresenceClient {
         CONNECTING.set(false);
         ACTIVE_USERS.clear();
         ACTIVE_NAMES.clear();
-        VERIFIED_CLAIMS.clear();
         CURRENT_CLAIMS.clear();
         SYNC_GENERATION.incrementAndGet();
 
@@ -173,6 +173,7 @@ public final class RunalPresenceClient {
             }
             if ("auth_success".equals(action)) {
                 LOGGER.info("Registered with Runal presence");
+                scheduleClaimRefresh(webSocket);
                 return;
             }
             if ("sync".equals(action)) {
@@ -181,6 +182,18 @@ public final class RunalPresenceClient {
         } catch (Exception error) {
             LOGGER.debug("Ignored invalid presence message: {}", error.getMessage());
         }
+    }
+
+    private static void scheduleClaimRefresh(WebSocket webSocket) {
+        int generation = GENERATION.get();
+        SCHEDULER.schedule(() -> {
+            if (!connectionWanted
+                    || generation != GENERATION.get()
+                    || socket != webSocket) {
+                return;
+            }
+            webSocket.sendText("{\"action\":\"refresh\"}", true);
+        }, CLAIM_REFRESH_SECONDS, TimeUnit.SECONDS);
     }
 
     private static void verifySnapshot(JsonArray users) {
