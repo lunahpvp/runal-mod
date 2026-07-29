@@ -33,7 +33,6 @@ public final class RunalBadge {
 
         MutableComponent result = Component.empty();
         result.append(Component.literal(GLYPH).withStyle(ICON_STYLE));
-        result.append(Component.literal(" "));
         result.append(name.copy());
         return result;
     }
