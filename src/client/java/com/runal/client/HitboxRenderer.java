@@ -22,12 +22,18 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.ShapeRenderer;
 //?}
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class HitboxRenderer {
 
@@ -58,17 +64,14 @@ public class HitboxRenderer {
         //? if 1.21.4 {
         /*PoseStack poseStack = context.matrixStack();
         MultiBufferSource.BufferSource bufferSource = (MultiBufferSource.BufferSource) context.consumers();
-        VertexConsumer consumer = bufferSource.getBuffer(RenderTypes.lines());
         *///?}
         //? if 1.21.11 {
         /*PoseStack poseStack = context.matrices();
         MultiBufferSource.BufferSource bufferSource = (MultiBufferSource.BufferSource) context.consumers();
-        VertexConsumer consumer = bufferSource.getBuffer(RenderTypes.lines());
         *///?}
         //? if 26.1.2 {
         PoseStack poseStack = context.poseStack();
         MultiBufferSource.BufferSource bufferSource = context.bufferSource();
-        VertexConsumer consumer = bufferSource.getBuffer(RenderTypes.lines());
         //?}
         //? if 26.2 {
         /*PoseStack poseStack = context.poseStack();
@@ -78,32 +81,42 @@ public class HitboxRenderer {
         poseStack.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
 
         float tickDelta = mc.getDeltaTracker().getGameTimeDeltaPartialTick(true);
+        List<RenderedHitbox> hitboxes = new ArrayList<>();
         for (Entity entity : mc.level.entitiesForRendering()) {
             if (entity.isRemoved()) continue;
             if (entity == mc.player && mc.options.getCameraType().isFirstPerson()) continue;
+            // Server-side display/interaction helpers can have enormous synthetic
+            // bounding boxes. Rendering those is what produced the blue plane across
+            // the screen. "Entities" here means mobs/players and dropped items.
+            if (entity instanceof ArmorStand) continue;
+            if (!(entity instanceof LivingEntity) && !(entity instanceof ItemEntity)) continue;
 
             AABB box = getRenderBoundingBox(entity, tickDelta);
             if (isTooThin(box)) continue;
 
             int color = entity instanceof Player ? HitboxesState.INSTANCE.playerColor : HitboxesState.INSTANCE.entityColor;
-            //? if 1.21.4 {
-            /*ShapeRenderer.renderShape(poseStack, consumer, Shapes.create(box), 0, 0, 0, color);
-            *///?}
-            //? if 1.21.11 || 26.1.2 {
-            ShapeRenderer.renderShape(poseStack, consumer, Shapes.create(box), 0, 0, 0, color, HitboxesState.INSTANCE.lineWidth);
-            //?}
-            //? if 26.2 {
-            /*context.submitNodeCollector().submitShapeOutline(poseStack, Shapes.create(box), RenderTypes.LINES, color, HitboxesState.INSTANCE.lineWidth, false);
-            *///?}
+            hitboxes.add(new RenderedHitbox(box, color));
         }
 
-        poseStack.popPose();
-        //? if 1.21.4 {
-        /*bufferSource.endBatch(RenderTypes.lines());
-        *///?}
-        //? if 1.21.11 || 26.1.2 {
+        //? if 1.21.4 || 1.21.11 || 26.1.2 {
+        VertexConsumer consumer = bufferSource.getBuffer(RenderTypes.lines());
+        for (RenderedHitbox hitbox : hitboxes) {
+            //? if 1.21.4 {
+            /*ShapeRenderer.renderShape(poseStack, consumer, Shapes.create(hitbox.box()), 0, 0, 0, hitbox.color());
+            *///?}
+            //? if 1.21.11 || 26.1.2 {
+            ShapeRenderer.renderShape(poseStack, consumer, Shapes.create(hitbox.box()), 0, 0, 0, hitbox.color(), HitboxesState.INSTANCE.lineWidth);
+            //?}
+        }
         bufferSource.endBatch(RenderTypes.lines());
         //?}
+        //? if 26.2 {
+        /*for (RenderedHitbox hitbox : hitboxes) {
+            context.submitNodeCollector().submitShapeOutline(poseStack, Shapes.create(hitbox.box()), RenderTypes.LINES, hitbox.color(), HitboxesState.INSTANCE.lineWidth, false);
+        }
+        *///?}
+
+        poseStack.popPose();
     }
 
     private static AABB getRenderBoundingBox(Entity entity, float tickDelta) {
@@ -120,5 +133,8 @@ public class HitboxRenderer {
     private static boolean isTooThin(AABB box) {
         double minSize = 0.01;
         return box.getXsize() < minSize || box.getYsize() < minSize || box.getZsize() < minSize;
+    }
+
+    private record RenderedHitbox(AABB box, int color) {
     }
 }

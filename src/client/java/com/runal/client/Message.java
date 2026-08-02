@@ -82,4 +82,31 @@ public class Message {
     public static void info(String statusText) {
         chat(statusText, INFO);
     }
+
+    public static void commandSuccess(String statusText) {
+        command(statusText, SUCCESS);
+    }
+
+    public static void commandError(String statusText) {
+        command(statusText, ERROR);
+    }
+
+    public static void commandInfo(String statusText) {
+        command(statusText, INFO);
+    }
+
+    private static void command(String statusText, int statusColor) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+
+        MutableComponent message = gradientText("Runal")
+                .append(colored(" » ", 0x555555))
+                .append(colored(statusText, statusColor));
+
+        //? if 1.21.4 || 1.21.11 {
+        /*mc.player.displayClientMessage(message, false);
+        *///?} else {
+        mc.player.sendSystemMessage(message);
+        //?}
+    }
 }

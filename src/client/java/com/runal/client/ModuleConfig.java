@@ -34,7 +34,7 @@ public class ModuleConfig {
     private static Properties collectProperties() {
         Properties props = new Properties();
         for (Module module : ModuleManager.getModules()) {
-            String moduleKey = key(module.getName());
+            String moduleKey = module.getConfigKey();
             props.setProperty(moduleKey + ".enabled", String.valueOf(module.isEnabled()));
             saveSettings(props, moduleKey, module.getSettings());
         }
@@ -135,7 +135,7 @@ public class ModuleConfig {
         }
 
         for (Module module : ModuleManager.getModules()) {
-            String moduleKey = key(module.getName());
+            String moduleKey = module.getConfigKey();
             String saved = props.getProperty(moduleKey + ".enabled");
             if (saved == null) saved = props.getProperty(module.getName());
             if (saved != null) {
@@ -144,7 +144,17 @@ public class ModuleConfig {
             }
             loadSettings(props, moduleKey, module.getSettings());
         }
+        migrateTrackingStyleDefaults();
         loadHudPositions(props);
+    }
+
+    private static void migrateTrackingStyleDefaults() {
+        if (SessionManagerState.widgetColor == 0xAA101216) SessionManagerState.widgetColor = 0xFF35D77A;
+        if (SessionManagerState.labelColor == 0xFFA7A8B2) SessionManagerState.labelColor = 0xFF7CFFB2;
+        if (PerformanceHudState.nameColor == 0xFFA7A8B2) PerformanceHudState.nameColor = 0xFF7CFFB2;
+        if (EventTrackerState.nameColor == 0xFFA7A8B2) EventTrackerState.nameColor = 0xFF7CFFB2;
+        if (DungeonTrackerState.nameColor == 0xFFA7A8B2) DungeonTrackerState.nameColor = 0xFF7CFFB2;
+        if (BossDefeatState.nameColor == 0xFFA7A8B2) BossDefeatState.nameColor = 0xFF7CFFB2;
     }
 
     private static void saveSettings(Properties props, String prefix, Iterable<ModuleSetting> settings) {
@@ -171,7 +181,4 @@ public class ModuleConfig {
         }
     }
 
-    private static String key(String value) {
-        return value.toLowerCase().replaceAll("[^a-z0-9]+", "_").replaceAll("^_|_$", "");
-    }
 }

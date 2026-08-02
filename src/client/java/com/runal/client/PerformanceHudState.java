@@ -8,6 +8,6 @@ public class PerformanceHudState {
     public static boolean tps = true;
     public static boolean ping = true;
     public static boolean direction = true;
-    public static int nameColor = 0xFFA7A8B2;
+    public static int nameColor = 0xFF7CFFB2;
     public static int valueColor = 0xFFFFFFFF;
 }

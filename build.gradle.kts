@@ -31,6 +31,10 @@ sc.replacements {
         replace("GuiGraphicsExtractor", "GuiGraphics")
     }
     string {
+        direction.set(is1214)
+        replace("ClientCommands", "ClientCommandManager")
+    }
+    string {
         direction.set(only1214)
         replace("AvatarRenderState", "PlayerRenderState")
     }

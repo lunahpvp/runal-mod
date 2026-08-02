@@ -11,6 +11,7 @@ public final class RunalClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         RunalKeybinds.register();
+        RunalCommands.register();
         registerPictureInPictureRenderer();
 
         BuiltinModules.registerAll();

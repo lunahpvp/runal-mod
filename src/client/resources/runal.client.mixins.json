@@ -13,7 +13,8 @@
 		"EntityNameTagMixin",
 		"ChatCommandSuggestionsMixin",
 		"ChatScreenEmojiMixin",
-		"ChatComponentEmojiMixin"
+		"ChatComponentEmojiMixin",
+		"BossHealthOverlayScaleMixin"
 
 	],
 	"injectors": {

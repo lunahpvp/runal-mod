@@ -14,7 +14,7 @@ public class BossDefeatState {
     public static boolean enabled = true;
     public static int x = 8;
     public static int y = 350;
-    public static int nameColor = 0xFFA7A8B2;
+    public static int nameColor = 0xFF7CFFB2;
     public static int valueColor = 0xFFFFFFFF;
 
     private static final Map<String, Integer> defeatCounts = new LinkedHashMap<>();

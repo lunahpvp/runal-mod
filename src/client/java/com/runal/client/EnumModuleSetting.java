@@ -6,13 +6,19 @@ import java.util.function.Supplier;
 
 public class EnumModuleSetting implements ModuleSetting {
     private final String label;
+    private final String configLabel;
     private final List<String> values;
     private final Supplier<String> getter;
     private final Consumer<String> setter;
     private final String defaultValue;
 
     public EnumModuleSetting(String label, List<String> values, Supplier<String> getter, Consumer<String> setter) {
+        this(label, label, values, getter, setter);
+    }
+
+    public EnumModuleSetting(String label, String configLabel, List<String> values, Supplier<String> getter, Consumer<String> setter) {
         this.label = label;
+        this.configLabel = configLabel;
         this.values = values;
         this.getter = getter;
         this.setter = setter;
@@ -21,6 +27,11 @@ public class EnumModuleSetting implements ModuleSetting {
 
     @Override
     public String getLabel() { return label; }
+
+    @Override
+    public String getConfigKey() {
+        return configLabel.toLowerCase().replaceAll("[^a-z0-9]+", "_").replaceAll("^_|_$", "");
+    }
 
     @Override
     public String getDisplayValue() { return getter.get(); }

@@ -4,11 +4,17 @@ import java.util.List;
 
 public class SettingGroup implements ModuleSetting {
     private final String label;
+    private final String configLabel;
     private final List<ModuleSetting> settings;
-    private boolean expanded = true;
+    private boolean expanded = false;
 
     public SettingGroup(String label, List<ModuleSetting> settings) {
+        this(label, label, settings);
+    }
+
+    public SettingGroup(String label, String configLabel, List<ModuleSetting> settings) {
         this.label = label;
+        this.configLabel = configLabel;
         this.settings = settings;
     }
 
@@ -19,6 +25,11 @@ public class SettingGroup implements ModuleSetting {
     public String getLabel() { return label; }
 
     @Override
+    public String getConfigKey() {
+        return configLabel.toLowerCase().replaceAll("[^a-z0-9]+", "_").replaceAll("^_|_$", "");
+    }
+
+    @Override
     public String getDisplayValue() { return expanded ? "-" : "+"; }
 
     @Override
@@ -26,6 +37,7 @@ public class SettingGroup implements ModuleSetting {
 
     @Override
     public void resetToDefault() {
+        expanded = false;
         for (ModuleSetting setting : settings) setting.resetToDefault();
     }
 }

@@ -41,7 +41,7 @@ public class HudEditorScreen extends Screen {
 
         drawWidget(context, "Session", SessionManagerState.x, SessionManagerState.y, 112, 24, SessionManagerState.widgetColor);
         drawWidget(context, "Performance", PerformanceHudState.x, PerformanceHudState.y, 112, 46, 0xAA101216);
-        drawWidget(context, "Armor", ArmorHudState.x, ArmorHudState.y, "Vertical".equals(ArmorHudState.orientation) ? 24 : 84, "Vertical".equals(ArmorHudState.orientation) ? 84 : 24, 0xAA101216);
+        drawWidget(context, "Armor", ArmorHudState.x, ArmorHudState.y, UtilityHudRenderer.armorHudWidth(), UtilityHudRenderer.armorHudHeight(), 0xAA101216);
         drawWidget(context, "Inventory", InventoryHudState.x, InventoryHudState.y, InventoryHudState.WIDTH, InventoryHudState.HEIGHT, 0x55101216);
         drawWidget(context, "Events", EventTrackerState.x, EventTrackerState.y, 100, 40, 0xAA101216);
         drawWidget(context, "Cooldowns", ItemCooldownHudState.x, ItemCooldownHudState.y, 100, 40, 0xAA101216);
@@ -104,8 +104,8 @@ public class HudEditorScreen extends Screen {
     private boolean handleMouseClicked(int mouseX, int mouseY) {
         if (inside(mouseX, mouseY, SessionManagerState.x, SessionManagerState.y, 112, 24)) return startDrag("session", mouseX, mouseY, SessionManagerState.x, SessionManagerState.y);
         if (inside(mouseX, mouseY, PerformanceHudState.x, PerformanceHudState.y, 112, 46)) return startDrag("performance", mouseX, mouseY, PerformanceHudState.x, PerformanceHudState.y);
-        int armorW = "Vertical".equals(ArmorHudState.orientation) ? 24 : 84;
-        int armorH = "Vertical".equals(ArmorHudState.orientation) ? 84 : 24;
+        int armorW = UtilityHudRenderer.armorHudWidth();
+        int armorH = UtilityHudRenderer.armorHudHeight();
         if (inside(mouseX, mouseY, ArmorHudState.x, ArmorHudState.y, armorW, armorH)) return startDrag("armor", mouseX, mouseY, ArmorHudState.x, ArmorHudState.y);
         if (inside(mouseX, mouseY, InventoryHudState.x, InventoryHudState.y, InventoryHudState.WIDTH, InventoryHudState.HEIGHT)) return startDrag("inventory", mouseX, mouseY, InventoryHudState.x, InventoryHudState.y);
         if (inside(mouseX, mouseY, EventTrackerState.x, EventTrackerState.y, 100, 40)) return startDrag("events", mouseX, mouseY, EventTrackerState.x, EventTrackerState.y);

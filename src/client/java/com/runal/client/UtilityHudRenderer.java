@@ -22,6 +22,10 @@ import java.util.Map;
 import java.util.Set;
 
 public class UtilityHudRenderer {
+    private static final int TRACKING_FONT_SIZE = 6;
+    private static final int COOLDOWN_FONT_SIZE = 8;
+    private static final int UTILITY_FONT_SIZE = 10;
+    private static final int NEUTRAL_PANEL_COLOR = 0xD0000000;
 
     public static void register() {
         //? if 1.21.4 || 1.21.11 {
@@ -40,21 +44,20 @@ public class UtilityHudRenderer {
 
         if (SessionManagerState.enabled && SessionManagerState.showHud) {
             long seconds = (System.currentTimeMillis() - SessionManagerState.startTimeMs) / 1000L;
-            drawPanel(graphics, SessionManagerState.x, SessionManagerState.y, 112, 24, SessionManagerState.widgetColor);
-            drawLine(graphics, mc, SessionManagerState.x + 6, SessionManagerState.y + 8, "Playtime", formatTime(seconds), SessionManagerState.labelColor, SessionManagerState.valueColor);
+            drawTrackingPanel(graphics, mc, "Session", SessionManagerState.x, SessionManagerState.y,
+                    List.of(new TrackingLine("Playtime", formatTime(seconds), SessionManagerState.labelColor, SessionManagerState.valueColor)),
+                    SessionManagerState.widgetColor);
         }
 
         if (PerformanceHudState.enabled) {
-            int lines = countPerformanceLines();
-            int h = Math.max(16, lines * 11 + 8);
-            int y = PerformanceHudState.y + 5;
-            drawPanel(graphics, PerformanceHudState.x, PerformanceHudState.y, 112, h, 0xAA101216);
-            if (PerformanceHudState.fps) { drawLine(graphics, mc, PerformanceHudState.x + 6, y, "FPS", String.valueOf(mc.getFps()), PerformanceHudState.nameColor, PerformanceHudState.valueColor); y += 11; }
-            if (PerformanceHudState.tps) { drawLine(graphics, mc, PerformanceHudState.x + 6, y, "TPS", "20.0", PerformanceHudState.nameColor, PerformanceHudState.valueColor); y += 11; }
+            List<TrackingLine> lines = new ArrayList<>();
+            if (PerformanceHudState.fps) lines.add(new TrackingLine("FPS", String.valueOf(mc.getFps()), PerformanceHudState.nameColor, PerformanceHudState.valueColor));
+            if (PerformanceHudState.tps) lines.add(new TrackingLine("TPS", "20.0", PerformanceHudState.nameColor, PerformanceHudState.valueColor));
             if (PerformanceHudState.ping && mc.player != null && mc.getConnection() != null && mc.getConnection().getPlayerInfo(mc.player.getUUID()) != null) {
-                drawLine(graphics, mc, PerformanceHudState.x + 6, y, "Ping", mc.getConnection().getPlayerInfo(mc.player.getUUID()).getLatency() + "ms", PerformanceHudState.nameColor, PerformanceHudState.valueColor); y += 11;
+                lines.add(new TrackingLine("Ping", mc.getConnection().getPlayerInfo(mc.player.getUUID()).getLatency() + "ms", PerformanceHudState.nameColor, PerformanceHudState.valueColor));
             }
-            if (PerformanceHudState.direction && mc.player != null) drawLine(graphics, mc, PerformanceHudState.x + 6, y, "Dir", mc.player.getDirection().getName(), PerformanceHudState.nameColor, PerformanceHudState.valueColor);
+            if (PerformanceHudState.direction && mc.player != null) lines.add(new TrackingLine("Direction", mc.player.getDirection().getName(), PerformanceHudState.nameColor, PerformanceHudState.valueColor));
+            if (!lines.isEmpty()) drawTrackingPanel(graphics, mc, "Performance", PerformanceHudState.x, PerformanceHudState.y, lines, PerformanceHudState.nameColor);
         }
 
         if (ArmorHudState.enabled && ArmorHudState.showHud && mc.player != null) {
@@ -68,20 +71,12 @@ public class UtilityHudRenderer {
         drawCooldowns(graphics, mc);
 
         if (EventTrackerState.enabled && !EventTrackerState.events.isEmpty()) {
-            int lines = EventTrackerState.events.size();
-            int h = Math.max(16, lines * 11 + 8);
-            int w = 60;
+            List<TrackingLine> lines = new ArrayList<>();
             for (EventTrackerState.TrackedEvent event : EventTrackerState.events.values()) {
                 String value = event.remainingSeconds > 0 ? EventTrackerState.formatTime(event.remainingSeconds) : "Active";
-                w = Math.max(w, mc.font.width(event.name + ": " + value) + 12);
+                lines.add(new TrackingLine(event.name, value, EventTrackerState.nameColor, EventTrackerState.valueColor));
             }
-            drawPanel(graphics, EventTrackerState.x, EventTrackerState.y, w, h, 0xAA101216);
-            int y = EventTrackerState.y + 5;
-            for (EventTrackerState.TrackedEvent event : EventTrackerState.events.values()) {
-                String value = event.remainingSeconds > 0 ? EventTrackerState.formatTime(event.remainingSeconds) : "Active";
-                drawLine(graphics, mc, EventTrackerState.x + 6, y, event.name, value, EventTrackerState.nameColor, EventTrackerState.valueColor);
-                y += 11;
-            }
+            drawTrackingPanel(graphics, mc, "Events", EventTrackerState.x, EventTrackerState.y, lines, EventTrackerState.nameColor);
         }
 
         if (DungeonTrackerState.enabled && DungeonTrackerState.dungeonName != null) {
@@ -108,68 +103,90 @@ public class UtilityHudRenderer {
     public static final float WARNING_TITLE_SCALE = 2.5f;
 
     private static void drawWarningTitle(net.minecraft.client.gui.GuiGraphicsExtractor graphics, Minecraft mc, String title, int x, int y) {
-        //? if 1.21.4 {
-        /*graphics.pose().pushPose();
-        graphics.pose().translate(x, y, 0f);
-        graphics.pose().scale(WARNING_TITLE_SCALE, WARNING_TITLE_SCALE, 1f);
-        *///?} else {
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(x, y);
-        graphics.pose().scale(WARNING_TITLE_SCALE, WARNING_TITLE_SCALE);
-        //?}
-        graphics.text(mc.font, title, 0, 0, 0xFFFF3B3B, true);
-        //? if 1.21.4 {
-        /*graphics.pose().popPose();
-        *///?} else {
-        graphics.pose().popMatrix();
-        //?}
+        int size = Math.max(UTILITY_FONT_SIZE, Math.round(mc.font.lineHeight * WARNING_TITLE_SCALE));
+        PortableTextRenderer.draw(graphics, title, x, y, size, 0xFFFF3B3B);
     }
 
     private static void drawBossTitle(net.minecraft.client.gui.GuiGraphicsExtractor graphics, Minecraft mc) {
-        //? if 1.21.4 {
-        /*graphics.pose().pushPose();
-        graphics.pose().translate(BossTitleState.x, BossTitleState.y, 0f);
-        graphics.pose().scale(BossTitleState.scale, BossTitleState.scale, 1f);
-        *///?} else {
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(BossTitleState.x, BossTitleState.y);
-        graphics.pose().scale(BossTitleState.scale, BossTitleState.scale);
-        //?}
-        graphics.centeredText(mc.font, BossTitleState.currentText, 0, 0, BossTitleState.textColor);
-        //? if 1.21.4 {
-        /*graphics.pose().popPose();
-        *///?} else {
-        graphics.pose().popMatrix();
-        //?}
+        int size = Math.max(UTILITY_FONT_SIZE, Math.round(mc.font.lineHeight * BossTitleState.scale));
+        int textWidth = PortableTextRenderer.width(BossTitleState.currentText, size);
+        int textHeight = PortableTextRenderer.height(BossTitleState.currentText, size);
+        PortableTextRenderer.draw(
+                graphics,
+                BossTitleState.currentText,
+                BossTitleState.x - textWidth / 2,
+                BossTitleState.y - textHeight / 2,
+                size,
+                BossTitleState.textColor
+        );
     }
 
     private static void drawBossDefeatCounter(net.minecraft.client.gui.GuiGraphicsExtractor graphics, Minecraft mc) {
         String bossName = BossTitleState.lastBossName;
         String value = String.valueOf(BossDefeatState.getCount(bossName));
 
-        int w = Math.max(60, mc.font.width(bossName + ": " + value) + 12);
-        int h = 16;
-
-        drawPanel(graphics, BossDefeatState.x, BossDefeatState.y, w, h, 0xAA101216);
-        drawLine(graphics, mc, BossDefeatState.x + 6, BossDefeatState.y + 5, bossName, value, BossDefeatState.nameColor, BossDefeatState.valueColor);
+        drawTrackingPanel(graphics, mc, "Boss Defeats", BossDefeatState.x, BossDefeatState.y,
+                List.of(new TrackingLine(bossName, value, BossDefeatState.nameColor, BossDefeatState.valueColor)),
+                BossDefeatState.nameColor);
     }
 
-    private static int countPerformanceLines() {
-        int lines = 0;
-        if (PerformanceHudState.fps) lines++;
-        if (PerformanceHudState.tps) lines++;
-        if (PerformanceHudState.ping) lines++;
-        if (PerformanceHudState.direction) lines++;
-        return lines;
+    private static void drawTrackingPanel(net.minecraft.client.gui.GuiGraphicsExtractor graphics, Minecraft mc, String title,
+                                          int x, int y, List<TrackingLine> lines, int accentColor) {
+        drawTrackingPanel(graphics, mc, title, x, y, lines, accentColor, TRACKING_FONT_SIZE);
     }
 
-    private static void drawPanel(net.minecraft.client.gui.GuiGraphicsExtractor graphics, int x, int y, int w, int h, int color) {
-        graphics.fill(x + 2, y + 3, x + w + 2, y + h + 3, 0x33000000);
-        graphics.fill(x, y, x + w, y + h, color);
-        graphics.outline(x, y, w, h, 0x5535D77A);
+    private static void drawTrackingPanel(net.minecraft.client.gui.GuiGraphicsExtractor graphics, Minecraft mc, String title,
+                                          int x, int y, List<TrackingLine> lines, int accentColor, int fontSize) {
+        int width = PortableTextRenderer.width(title, fontSize) + 12;
+        for (TrackingLine line : lines) {
+            width = Math.max(width,
+                    PortableTextRenderer.width(line.label(), fontSize)
+                            + PortableTextRenderer.width(line.value(), fontSize) + 12);
+        }
+
+        int textHeight = PortableTextRenderer.height("Ag", fontSize);
+        int lineSpacing = textHeight + 1;
+        int height = textHeight + 3 + lines.size() * lineSpacing;
+        int borderColor = 0xFF000000 | (accentColor & 0x00FFFFFF);
+        drawTrackingFrame(graphics, title, x, y, width, height, borderColor, fontSize);
+        int lineY = y + textHeight + 1;
+        for (TrackingLine line : lines) {
+            PortableTextRenderer.draw(graphics, line.label(), x + 4, lineY, fontSize, line.labelColor());
+            int valueWidth = PortableTextRenderer.width(line.value(), fontSize);
+            PortableTextRenderer.draw(graphics, line.value(), x + width - valueWidth - 4, lineY, fontSize, line.valueColor());
+            lineY += lineSpacing;
+        }
+    }
+
+    private static void drawTrackingFrame(
+            net.minecraft.client.gui.GuiGraphicsExtractor graphics,
+            String title,
+            int x,
+            int y,
+            int width,
+            int height,
+            int borderColor,
+            int fontSize
+    ) {
+        graphics.fill(x + 1, y, x + width - 1, y + height, NEUTRAL_PANEL_COLOR);
+        graphics.fill(x, y + 1, x + 1, y + height - 1, NEUTRAL_PANEL_COLOR);
+        graphics.fill(x + width - 1, y + 1, x + width, y + height - 1, NEUTRAL_PANEL_COLOR);
+
+        int textHeight = PortableTextRenderer.height("Ag", fontSize);
+        int titleMidY = y + textHeight / 2;
+        int titleGapEnd = x + PortableTextRenderer.width(title, fontSize) + 9;
+        graphics.fill(x + 2, titleMidY, x + 6, titleMidY + 1, borderColor);
+        graphics.fill(titleGapEnd, titleMidY, x + width - 2, titleMidY + 1, borderColor);
+        graphics.fill(x + 2, y + height - 2, x + width - 2, y + height - 1, borderColor);
+        graphics.fill(x + 1, titleMidY, x + 2, y + height - 2, borderColor);
+        graphics.fill(x + width - 2, titleMidY, x + width - 1, y + height - 2, borderColor);
+        PortableTextRenderer.draw(graphics, title, x + 6, y, fontSize, borderColor);
     }
 
     private record CooldownEntry(String name, String value, int nameColor, int valueColor) {
+    }
+
+    private record TrackingLine(String label, String value, int labelColor, int valueColor) {
     }
 
     private static boolean showSeconds() {
@@ -233,18 +250,20 @@ public class UtilityHudRenderer {
 
         if (entries.isEmpty()) return;
 
-        int h = Math.max(16, entries.size() * 11 + 8);
-        int w = 60;
+        List<TrackingLine> lines = new ArrayList<>(entries.size());
         for (CooldownEntry entry : entries) {
-            w = Math.max(w, mc.font.width(entry.name() + ": " + entry.value()) + 12);
+            lines.add(new TrackingLine(entry.name(), entry.value(), entry.nameColor(), entry.valueColor()));
         }
-
-        drawPanel(graphics, ItemCooldownHudState.x, ItemCooldownHudState.y, w, h, 0xAA101216);
-        int y = ItemCooldownHudState.y + 5;
-        for (CooldownEntry entry : entries) {
-            drawLine(graphics, mc, ItemCooldownHudState.x + 6, y, entry.name(), entry.value(), entry.nameColor(), entry.valueColor());
-            y += 11;
-        }
+        drawTrackingPanel(
+                graphics,
+                mc,
+                "Cooldowns",
+                ItemCooldownHudState.x,
+                ItemCooldownHudState.y,
+                lines,
+                entries.get(0).nameColor(),
+                COOLDOWN_FONT_SIZE
+        );
     }
 
     private static String valueFor(boolean seconds, float percent, String key, long nowTick) {
@@ -265,42 +284,50 @@ public class UtilityHudRenderer {
         int color = DungeonTrackerState.themeColor != null ? DungeonTrackerState.themeColor : DungeonTrackerState.nameColor;
         int valueColor = DungeonTrackerState.themeColor != null ? DungeonTrackerState.themeColor : DungeonTrackerState.valueColor;
 
-        int w = 60;
-        w = Math.max(w, mc.font.width("Dungeon: " + DungeonTrackerState.dungeonName) + 12);
-        w = Math.max(w, mc.font.width("Room: " + roomStr) + 12);
-        w = Math.max(w, mc.font.width("Parkour: " + parkourStr) + 12);
-        w = Math.max(w, mc.font.width(DungeonTrackerState.bossName + ": " + bossStr) + 12);
-        w = Math.max(w, mc.font.width("Treasure Chest: " + chestStr) + 12);
-        int h = Math.max(16, 5 * 11 + 8);
-
-        drawPanel(graphics, DungeonTrackerState.x, DungeonTrackerState.y, w, h, 0xAA101216);
-        int y = DungeonTrackerState.y + 5;
-        drawLine(graphics, mc, DungeonTrackerState.x + 6, y, "Dungeon", DungeonTrackerState.dungeonName, color, valueColor); y += 11;
-        drawLine(graphics, mc, DungeonTrackerState.x + 6, y, "Room", roomStr, color, valueColor); y += 11;
-        drawLine(graphics, mc, DungeonTrackerState.x + 6, y, "Parkour", parkourStr, color, valueColor); y += 11;
-        drawLine(graphics, mc, DungeonTrackerState.x + 6, y, DungeonTrackerState.bossName, bossStr, color, valueColor); y += 11;
-        drawLine(graphics, mc, DungeonTrackerState.x + 6, y, "Treasure Chest", chestStr, color, valueColor);
+        drawTrackingPanel(graphics, mc, "Dungeon", DungeonTrackerState.x, DungeonTrackerState.y, List.of(
+                new TrackingLine("Dungeon", DungeonTrackerState.dungeonName, color, valueColor),
+                new TrackingLine("Room", roomStr, color, valueColor),
+                new TrackingLine("Parkour", parkourStr, color, valueColor),
+                new TrackingLine(DungeonTrackerState.bossName, bossStr, color, valueColor),
+                new TrackingLine("Treasure Chest", chestStr, color, valueColor)
+        ), color);
     }
 
     private static void drawArmor(net.minecraft.client.gui.GuiGraphicsExtractor graphics, Minecraft mc) {
         EquipmentSlot[] slots = { EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET };
         int x = ArmorHudState.x;
         int y = ArmorHudState.y;
-        int w = "Vertical".equals(ArmorHudState.orientation) ? 24 : 84;
-        int h = "Vertical".equals(ArmorHudState.orientation) ? 84 : 24;
-        drawPanel(graphics, x, y, w, h, 0xAA101216);
+        boolean vertical = "Vertical".equals(ArmorHudState.orientation);
+        int contentWidth = vertical ? 16 : 76;
+        int contentHeight = vertical ? 76 : 16;
+        int textHeight = PortableTextRenderer.height("Ag", TRACKING_FONT_SIZE);
+        int w = Math.max(PortableTextRenderer.width("Armor", TRACKING_FONT_SIZE) + 12, contentWidth + 8);
+        int h = textHeight + contentHeight + 7;
+        int borderColor = 0xFF000000 | (ArmorHudState.widgetColor & 0x00FFFFFF);
+        drawTrackingFrame(graphics, "Armor", x, y, w, h, borderColor, TRACKING_FONT_SIZE);
+        int contentY = y + textHeight + 2;
 
         for (int i = 0; i < slots.length; i++) {
             ItemStack stack = mc.player.getItemBySlot(slots[i]);
-            int ix = "Vertical".equals(ArmorHudState.orientation) ? x + 4 : x + 4 + i * 20;
-            int iy = "Vertical".equals(ArmorHudState.orientation) ? y + 4 + i * 20 : y + 4;
+            int ix = vertical ? x + 4 : x + 4 + i * 20;
+            int iy = vertical ? contentY + i * 20 : contentY;
             if (!stack.isEmpty()) {
                 graphics.item(stack, ix, iy);
                 graphics.itemDecorations(mc.font, stack, ix, iy);
             } else {
-                graphics.outline(ix, iy, 16, 16, 0x559D9DA8);
+                graphics.outline(ix, iy, 16, 16, (ArmorHudState.widgetColor & 0x00FFFFFF) | 0x55000000);
             }
         }
+    }
+
+    public static int armorHudWidth() {
+        boolean vertical = "Vertical".equals(ArmorHudState.orientation);
+        return Math.max(PortableTextRenderer.width("Armor", TRACKING_FONT_SIZE) + 12, (vertical ? 16 : 76) + 8);
+    }
+
+    public static int armorHudHeight() {
+        boolean vertical = "Vertical".equals(ArmorHudState.orientation);
+        return PortableTextRenderer.height("Ag", TRACKING_FONT_SIZE) + (vertical ? 76 : 16) + 7;
     }
 
     private static void drawInventory(net.minecraft.client.gui.GuiGraphicsExtractor graphics, Minecraft mc) {
@@ -317,11 +344,6 @@ public class UtilityHudRenderer {
                 graphics.itemDecorations(mc.font, stack, x, y);
             }
         }
-    }
-
-    private static void drawLine(net.minecraft.client.gui.GuiGraphicsExtractor graphics, Minecraft mc, int x, int y, String label, String value, int labelColor, int valueColor) {
-        graphics.text(mc.font, label + ":", x, y, labelColor, true);
-        graphics.text(mc.font, value, x + mc.font.width(label + ": "), y, valueColor, true);
     }
 
     private static String formatTime(long seconds) {

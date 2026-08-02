@@ -157,19 +157,19 @@ public class BuiltinModules {
             private final List<ModuleSetting> settings = List.of(
                     new EnumModuleSetting("Render Mode", List.of("Third Person", "Always"), () -> state.renderMode, v -> state.renderMode = v),
                     new EnumModuleSetting("Render Style", List.of("Bar", "Compact", "Text"), () -> state.renderStyle, v -> state.renderStyle = v),
-                    new SettingGroup("Display & Positioning", List.of(
+                    new SettingGroup("Display", "Display & Positioning", List.of(
                             new EnumModuleSetting("Health Format", List.of("Current", "Percent"), () -> state.healthFormat, v -> state.healthFormat = v),
                             new ToggleModuleSetting("Show Max Health", () -> state.showMaxHealth, v -> state.showMaxHealth = v)
                                     .withDescription("Shows your current maximum health."),
                             new EnumModuleSetting("Text Position", List.of("Center", "Left", "Right", "Above", "Below"), () -> state.textPosition, v -> state.textPosition = v),
                             new SliderModuleSetting("Y Offset", -40f, 40f, 1f, () -> (float) state.yOffset, v -> state.yOffset = Math.round(v))
                     )),
-                    new SettingGroup("Text Customization", List.of(
+                    new SettingGroup("Text", "Text Customization", List.of(
                             new ColorModuleSetting("Text Color", () -> state.textColor, v -> state.textColor = v),
                             new EnumModuleSetting("Text Style", List.of("Shadow", "Flat"), () -> state.textStyle, v -> state.textStyle = v),
                             new SliderModuleSetting("Text Scale", 0.5f, 2.0f, 0.1f, () -> state.textScale, v -> state.textScale = v)
                     )),
-                    new SettingGroup("Colors & Animations", List.of(
+                    new SettingGroup("Colors", "Colors & Animations", List.of(
                             new ToggleModuleSetting("Smooth Interpolation", () -> state.smoothInterpolation, v -> state.smoothInterpolation = v),
                             new ToggleModuleSetting("Damage Flash", () -> state.damageFlash, v -> state.damageFlash = v),
                             new ColorModuleSetting("Damage Flash Color", () -> state.damageFlashColor, v -> state.damageFlashColor = v),
@@ -181,7 +181,7 @@ public class BuiltinModules {
                             new SliderModuleSetting("Mid HP Threshold", 0.05f, 1.0f, 0.05f, () -> state.midHpThreshold, v -> state.midHpThreshold = v),
                             new SliderModuleSetting("Low HP Threshold", 0.05f, 1.0f, 0.05f, () -> state.lowHpThreshold, v -> state.lowHpThreshold = v)
                     )),
-                    new SettingGroup("Bar Dimensions", List.of(
+                    new SettingGroup("Dimensions", "Bar Dimensions", List.of(
                             new SliderModuleSetting("Width", 20f, 160f, 1f, () -> (float) state.width, v -> state.width = Math.round(v)),
                             new SliderModuleSetting("Height", 3f, 24f, 1f, () -> (float) state.height, v -> state.height = Math.round(v))
                     )),
@@ -262,7 +262,8 @@ public class BuiltinModules {
                     new ColorModuleSetting("Name Color", () -> ItemCooldownHudState.nameColor, v -> ItemCooldownHudState.nameColor = v),
                     new ColorModuleSetting("Value Color", () -> ItemCooldownHudState.valueColor, v -> ItemCooldownHudState.valueColor = v)
             );
-            public String getName() { return "Weapons Cooldown"; }
+            public String getName() { return "Weapon Cooldown"; }
+            public String getConfigKey() { return "weapons_cooldown"; }
             public String getDescription() { return "Displays weapon ability cooldowns on screen."; }
             public String getCategory() { return "Combat"; }
             public boolean isEnabled() { return ItemCooldownHudState.enabled; }
@@ -289,6 +290,7 @@ public class BuiltinModules {
                     new ColorModuleSetting("Value Color", () -> AccessoryCooldownState.valueColor, v -> AccessoryCooldownState.valueColor = v)
             );
             public String getName() { return "Accessory Cooldown"; }
+            public String getConfigKey() { return "accessory_cooldown"; }
             public String getDescription() { return "Displays accessory ability cooldowns on screen."; }
             public String getCategory() { return "Combat"; }
             public boolean isEnabled() { return AccessoryCooldownState.enabled; }
@@ -314,7 +316,8 @@ public class BuiltinModules {
                     new ColorModuleSetting("Name Color", () -> BossDefeatState.nameColor, v -> BossDefeatState.nameColor = v),
                     new ColorModuleSetting("Value Color", () -> BossDefeatState.valueColor, v -> BossDefeatState.valueColor = v)
             );
-            public String getName() { return "Boss Defeat Counter"; }
+            public String getName() { return "Kill Counter"; }
+            public String getConfigKey() { return "boss_defeat_counter"; }
             public String getDescription() { return "Counts and displays boss defeats."; }
             public String getCategory() { return "Tracking"; }
             public boolean isEnabled() { return BossDefeatState.enabled; }
@@ -325,13 +328,26 @@ public class BuiltinModules {
         ModuleManager.register(new Module() {
             private final List<ModuleSetting> settings = List.of(
                     new ToggleModuleSetting("Show HUD", () -> ArmorHudState.showHud, v -> ArmorHudState.showHud = v),
-                    new EnumModuleSetting("Orientation", List.of("Horizontal", "Vertical"), () -> ArmorHudState.orientation, v -> ArmorHudState.orientation = v)
+                    new EnumModuleSetting("Orientation", List.of("Horizontal", "Vertical"), () -> ArmorHudState.orientation, v -> ArmorHudState.orientation = v),
+                    new ColorModuleSetting("Widget Color", () -> ArmorHudState.widgetColor, v -> ArmorHudState.widgetColor = v)
             );
             public String getName() { return "Armor HUD"; }
             public String getDescription() { return "Displays your equipped armor pieces on screen."; }
             public String getCategory() { return "Visual"; }
             public boolean isEnabled() { return ArmorHudState.enabled; }
             public void toggle() { ArmorHudState.enabled = !ArmorHudState.enabled; }
+            public List<ModuleSetting> getSettings() { return settings; }
+        });
+
+        ModuleManager.register(new Module() {
+            private final List<ModuleSetting> settings = List.of(
+                    new SliderModuleSetting("Scale", 0.25f, 1.0f, 0.05f, () -> BossBarScaleState.INSTANCE.scale, v -> BossBarScaleState.INSTANCE.scale = v)
+            );
+            public String getName() { return "Boss Bar Scale"; }
+            public String getDescription() { return "Changes the size of boss bars without hiding their information."; }
+            public String getCategory() { return "Visual"; }
+            public boolean isEnabled() { return BossBarScaleState.INSTANCE.isEnabled(); }
+            public void toggle() { BossBarScaleState.INSTANCE.toggle(); }
             public List<ModuleSetting> getSettings() { return settings; }
         });
 
@@ -348,7 +364,7 @@ public class BuiltinModules {
                     new ToggleModuleSetting("Chat Notifications", () -> RunalSettings.chatNotifications, v -> RunalSettings.chatNotifications = v),
                     new ColorModuleSetting("Accent Color", () -> RunalSettings.accentColor, v -> RunalSettings.accentColor = v),
                     new ToggleModuleSetting("Rounded Menu", () -> RunalSettings.roundedPanelBottoms, v -> RunalSettings.roundedPanelBottoms = v),
-                    new EnumModuleSetting("Cooldown Display", List.of("Percent", "Seconds"), () -> RunalSettings.cooldownDisplayMode, v -> RunalSettings.cooldownDisplayMode = v),
+                    new EnumModuleSetting("Cooldown", "Cooldown Display", List.of("Percent", "Seconds"), () -> RunalSettings.cooldownDisplayMode, v -> RunalSettings.cooldownDisplayMode = v),
                     new ButtonModuleSetting("HUD Editor", "Open", () -> Minecraft.getInstance().setScreen(new HudEditorScreen())),
                     new KeybindModuleSetting(RunalKeybinds.openMenu())
             );
@@ -429,9 +445,28 @@ public class BuiltinModules {
 
     private static List<ModuleSetting> buildCommandBindSettings() {
         List<ModuleSetting> settings = new ArrayList<>();
+        settings.add(new KeybindModuleSetting("Warps", RunalKeybinds.scepterWarps()));
+        settings.add(new KeybindModuleSetting("Class & Talents", RunalKeybinds.scepterClass()));
+        settings.add(new KeybindModuleSetting("Achievements", RunalKeybinds.scepterAchievements()));
+        settings.add(new KeybindModuleSetting("Pity", RunalKeybinds.scepterPity()));
+        settings.add(new KeybindModuleSetting("Shards", RunalKeybinds.scepterShards()));
+        settings.add(new KeybindModuleSetting("Player Vaults", RunalKeybinds.scepterVaults()));
+        settings.add(new KeybindModuleSetting("Trash", RunalKeybinds.scepterTrash()));
+        settings.add(new SettingGroup("Activities", List.of(
+                new KeybindModuleSetting("AFK Area", RunalKeybinds.scepterAfk()),
+                new KeybindModuleSetting("Radio", RunalKeybinds.scepterRadio()),
+                new KeybindModuleSetting("Dance", RunalKeybinds.scepterDance())
+        )));
+        settings.add(new SettingGroup("Ranks", List.of(
+                new KeybindModuleSetting("Sigil Shop", RunalKeybinds.scepterSigilShop()),
+                new KeybindModuleSetting("Claim Luck", RunalKeybinds.scepterClaimLuck())
+        )));
+        settings.add(new SettingGroup("Safety", List.of(
+                new KeybindModuleSetting("Suicide", RunalKeybinds.scepterSuicide())
+        )));
         for (int i = 0; i < CommandBindState.SLOT_COUNT; i++) {
             int idx = i;
-            settings.add(new SettingGroup("Slot " + (i + 1), List.of(
+            settings.add(new SettingGroup("Custom Slot " + (i + 1), List.of(
                     new TextModuleSetting("Command", () -> CommandBindState.INSTANCE.commands[idx], v -> CommandBindState.INSTANCE.commands[idx] = v),
                     new KeybindModuleSetting(RunalKeybinds.commandBind(idx))
             )));

@@ -45,10 +45,11 @@ public class RunalScreen extends Screen {
 
     // Runal's compact logical dimensions. Melinoe's independent resolution scale
     // is applied to these; Minecraft's configurable GUI scale is not.
-    private static final int COLUMN_WIDTH = 180;
+    private static final int COLUMN_WIDTH = 240;
     private static final int COLUMN_GAP = 20;
     private static final int ROW_HEIGHT = 29;
-    private static final int SUB_ROW_HEIGHT = 22;
+    private static final int SUB_ROW_HEIGHT = 25;
+    private static final int GROUP_ROW_HEIGHT = 30;
     private static final int HEADER_HEIGHT = 32;
     private static final int PANEL_RADIUS = 0;
     private static final int ROUNDED_MENU_RADIUS = 6;
@@ -56,23 +57,28 @@ public class RunalScreen extends Screen {
     private static final int PANEL_BOTTOM_MARGIN = 44;
     private static final int SCROLL_SPEED = 12;
 
-    private static final float TEXT_SCALE = 0.78f;
-    private static final float HEADER_TEXT_SCALE = 1.15f;
-    private static final float SETTING_TEXT_SIZE = 12f;
-    private static final float MODULE_TEXT_SIZE = 15f;
-    private static final float SUB_TEXT_SCALE = 0.66f;
+    private static final float TEXT_SCALE = 1.0f;
+    private static final float HEADER_TEXT_SCALE = 1.37f;
+    private static final float SETTING_TEXT_SIZE = 16f;
+    private static final float CHIP_TEXT_SIZE = 14f;
+    private static final float GROUP_TEXT_SIZE = 15f;
+    private static final float MODULE_TEXT_SIZE = 18f;
+    private static final float SUB_TEXT_SCALE = 0.88f;
+    private static final float LEGACY_SETTING_TEXT_SCALE = 1.10f;
+    private static final float GROUP_TEXT_SCALE = 1.0f;
+    private static final float LEGACY_MODULE_TEXT_SCALE = 1.15f;
 
     private static final int TEXT_LEFT_PADDING = 14;
     private static final int SUB_TEXT_LEFT_PADDING = 17;
 
-    private static final int COLOR_HEADER_BG = 0xF21A1B20;
+    private static final int COLOR_HEADER_BG = 0xFF1A1A1A;
     private static final int COLOR_HEADER_BG_HOVER = 0xF224252C;
-    private static final int COLOR_PANEL_BG = 0xE70D0E12;
+    private static final int COLOR_PANEL_BG = 0xFF1A1A1A;
     private static final int COLOR_PANEL_BORDER = 0x703A3C44;
     private static final int COLOR_PANEL_BORDER_HOT = 0xAA35D77A;
-    private static final int COLOR_ROW_OFF = 0xEA17181D;
+    private static final int COLOR_ROW_OFF = 0xFF1A1A1A;
     private static final int COLOR_ROW_HOVER = 0xF022242A;
-    private static final int COLOR_SUB_ROW = 0xE8121317;
+    private static final int COLOR_SUB_ROW = 0xFF1A1A1A;
     private static final int COLOR_SUB_ROW_HOVER = 0xEA1C1E24;
     private static final int COLOR_TEXT = 0xFFEDEDF2;
     private static final int COLOR_DIM_TEXT = 0xFFA7A8B2;
@@ -85,7 +91,7 @@ public class RunalScreen extends Screen {
     /** Melinoe's exact ClickGUI.gray26 - flat panel/header/off-row fill for the NVG chrome. */
     private static final int COLOR_GRAY26 = 0xFF1A1A1A;
 
-    private static final long OPEN_ANIM_DURATION_MS = 750L;
+    private static final long OPEN_ANIM_DURATION_MS = 650L;
     private long openTimeMs = 0L;
 
     private EditBox searchBox;
@@ -117,6 +123,12 @@ public class RunalScreen extends Screen {
 
     public RunalScreen() {
         super(Component.literal("Runal"));
+    }
+
+    public static void resetPanelPositions() {
+        SAVED_POSITIONS.clear();
+        EXPANDED.clear();
+        COLLAPSED_CATEGORIES.clear();
     }
 
     @Override
@@ -151,7 +163,10 @@ public class RunalScreen extends Screen {
         }
 
         searchBox = new EditBox(
-                this.font, (this.width - 220) / 2, this.height - 32, 220, 20,
+                // The borderless EditBox draws its glyph baseline higher than our
+                // custom 20px search chrome. Shift only the input layer down so
+                // typed text is optically centered inside the visible field.
+                this.font, (this.width - 220) / 2, this.height - 28, 220, 20,
                 Component.literal("Search")
         );
         searchBox.setBordered(false);
@@ -348,6 +363,14 @@ public class RunalScreen extends Screen {
         return (a << 24) | (r << 16) | (g << 8) | b;
     }
 
+    private int darkenColor(int color) {
+        int a = (color >>> 24) & 255;
+        int r = (int) (((color >>> 16) & 255) * 0.7f);
+        int g = (int) (((color >>> 8) & 255) * 0.7f);
+        int b = (int) ((color & 255) * 0.7f);
+        return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
     private void drawRoundedRect(GuiGraphicsExtractor context, int x, int y, int width, int height, int color) {
         drawRoundedRect(context, x, y, width, height, color, PANEL_RADIUS);
     }
@@ -451,8 +474,7 @@ public class RunalScreen extends Screen {
             int y,
             int width
     ) {
-        context.fill(x + 10, y, x + width - 10, y + 1, 0x30FFFFFF);
-        context.fill(x + 10, y, x + 38, y + 1, alpha(accentColor(), 0.60f));
+        context.fill(x + 10, y, x + width - 10, y + 1, alpha(accentColor(), 0.60f));
     }
 
     private void drawSlider(GuiGraphicsExtractor context, SliderModuleSetting slider, int x, int y, int h) {
@@ -513,18 +535,6 @@ public class RunalScreen extends Screen {
         //?}
     }
 
-    /** Trims text with a trailing "..." if it would render wider than maxWidth. */
-    private String truncateToFit(String text, float maxWidth, float scale) {
-        if (maxWidth <= 0) return "";
-        if (font.width(styled(text)) * scale <= maxWidth) return text;
-        String ellipsis = "...";
-        for (int len = text.length() - 1; len > 0; len--) {
-            String candidate = text.substring(0, len) + ellipsis;
-            if (font.width(styled(candidate)) * scale <= maxWidth) return candidate;
-        }
-        return ellipsis;
-    }
-
     /**
      * NanoVG's font functions (nvgFontFaceId etc.) are only safe to call from inside the
      * active deferred NVG frame (the NVGPIPRenderer callback) - calling them synchronously,
@@ -536,17 +546,6 @@ public class RunalScreen extends Screen {
      */
     private float estimateNvgTextWidth(String text, float nvgSize) {
         return font.width(styled(text)) * (nvgSize / 9f);
-    }
-
-    private String truncateToFitNVG(String text, float maxWidth, float size) {
-        if (maxWidth <= 0) return "";
-        if (estimateNvgTextWidth(text, size) <= maxWidth) return text;
-        String ellipsis = "...";
-        for (int len = text.length() - 1; len > 0; len--) {
-            String candidate = text.substring(0, len) + ellipsis;
-            if (estimateNvgTextWidth(candidate, size) <= maxWidth) return candidate;
-        }
-        return ellipsis;
     }
 
     private void toggleCategory(String category) {
@@ -605,6 +604,7 @@ public class RunalScreen extends Screen {
 
     private int settingRowHeight(ModuleSetting setting) {
         if (setting instanceof ColorModuleSetting color) return color.isExtended() ? PICKER_EXTENDED_HEIGHT : SUB_ROW_HEIGHT;
+        if (setting instanceof SettingGroup) return GROUP_ROW_HEIGHT;
         if (setting instanceof SliderModuleSetting) return SUB_ROW_HEIGHT + 6;
         return SUB_ROW_HEIGHT;
     }
@@ -624,10 +624,17 @@ public class RunalScreen extends Screen {
             drawRoundedRect(context, controlX + 18, controlY, 20, 8, bg, 4);
             drawRoundedRect(context, controlX + (toggle.getValue() ? 30 : 20), controlY + 1, 6, 6, COLOR_TEXT, 3);
         } else if (setting instanceof ColorModuleSetting color) {
-            drawRoundedRect(context, x + COLUMN_WIDTH - 25, controlY - 1, 14, 10, COLOR_PANEL_BORDER, 4);
-            drawRoundedRect(context, x + COLUMN_WIDTH - 24, controlY, 12, 8, color.getColor(), 3);
+            PortableTextRenderer.drawColorSwatch(
+                    context,
+                    x + COLUMN_WIDTH - 40,
+                    y + (h - 20) / 2,
+                    34,
+                    20,
+                    color.getColor()
+            );
         } else if (setting instanceof SettingGroup group) {
             context.fill(x + 12, y + h - 2, x + COLUMN_WIDTH - 12, y + h - 1, alpha(accentColor(), group.isExpanded() ? 0.55f : 0.22f));
+            drawChevronPortable(context, x + COLUMN_WIDTH - 16, y + h / 2, group.isExpanded(), 0xFFFFFFFF);
         }
     }
 
@@ -825,7 +832,7 @@ public class RunalScreen extends Screen {
                     drawScaledLeftText(context, EXPANDED.contains(module) ? "-" : "+", panel.x + COLUMN_WIDTH - 15, rowY, ROW_HEIGHT, COLOR_DIM_TEXT, TEXT_SCALE);
                 }
                 int textColor = mixColor(COLOR_TEXT, 0xFFFFFFFF, Math.max(toggle, hover * 0.45f));
-                drawScaledCenteredText(context, module.getName(), panel.x, rowY, COLUMN_WIDTH, ROW_HEIGHT, textColor, TEXT_SCALE);
+                drawScaledCenteredText(context, module.getName(), panel.x, rowY, COLUMN_WIDTH, ROW_HEIGHT, textColor, LEGACY_MODULE_TEXT_SCALE);
 
                 rowY += ROW_HEIGHT;
                 if (expand > 0.025f && !module.getSettings().isEmpty()) {
@@ -852,17 +859,21 @@ public class RunalScreen extends Screen {
                         if (allowedHeight >= 9) {
                             if (setting instanceof ColorModuleSetting colorSetting && allowedHeight >= SUB_ROW_HEIGHT * 2) {
                                 int lineH = allowedHeight / 2;
-                                drawScaledLeftText(context, colorSetting.getLabel(), panel.x + SUB_TEXT_LEFT_PADDING, rowY, lineH, COLOR_DIM_TEXT, SUB_TEXT_SCALE);
+                                drawScaledLeftText(context, colorSetting.getLabel(), panel.x + SUB_TEXT_LEFT_PADDING, rowY, lineH, COLOR_DIM_TEXT, LEGACY_SETTING_TEXT_SCALE);
                                 String valueText = colorSetting.getDisplayValue();
-                                int valueWidth = (int) (font.width(styled(valueText)) * SUB_TEXT_SCALE);
-                                drawScaledLeftText(context, valueText, panel.x + COLUMN_WIDTH - valueWidth - 30, rowY + lineH, lineH, listening ? accentColor() : COLOR_TEXT, SUB_TEXT_SCALE);
+                                int valueWidth = (int) (font.width(styled(valueText)) * LEGACY_SETTING_TEXT_SCALE);
+                                drawScaledLeftText(context, valueText, panel.x + COLUMN_WIDTH - valueWidth - 30, rowY + lineH, lineH, listening ? accentColor() : COLOR_TEXT, LEGACY_SETTING_TEXT_SCALE);
                                 drawSettingControl(context, colorSetting, panel.x, rowY + lineH, lineH, subHovered);
                             } else {
-                                drawScaledLeftText(context, setting.getLabel(), panel.x + SUB_TEXT_LEFT_PADDING, rowY, allowedHeight, COLOR_DIM_TEXT, SUB_TEXT_SCALE);
-                                String valueText = setting.getDisplayValue();
-                                int valueWidth = (int) (font.width(styled(valueText)) * SUB_TEXT_SCALE);
+                                boolean isGroup = setting instanceof SettingGroup;
+                                boolean isChip = setting instanceof EnumModuleSetting || setting instanceof KeybindModuleSetting;
+                                float rowTextScale = isGroup ? GROUP_TEXT_SCALE : LEGACY_SETTING_TEXT_SCALE;
+                                String valueText = isGroup ? "" : setting.getDisplayValue();
+                                float valueTextScale = isChip ? 0.95f : rowTextScale;
+                                int valueWidth = (int) (font.width(styled(valueText)) * valueTextScale);
+                                drawScaledLeftText(context, setting.getLabel(), panel.x + SUB_TEXT_LEFT_PADDING, rowY, allowedHeight, isGroup ? COLOR_TEXT : COLOR_DIM_TEXT, rowTextScale);
                                 boolean textEditing = setting instanceof TextModuleSetting text && text.isEditing();
-                                drawScaledLeftText(context, valueText, panel.x + COLUMN_WIDTH - valueWidth - 12, rowY, allowedHeight, listening || textEditing ? accentColor() : COLOR_TEXT, SUB_TEXT_SCALE);
+                                drawScaledLeftText(context, valueText, panel.x + COLUMN_WIDTH - valueWidth - 12, rowY, allowedHeight, listening || textEditing ? accentColor() : COLOR_TEXT, valueTextScale);
                                 drawSettingControl(context, setting, panel.x, rowY, allowedHeight, subHovered);
                                 if (setting instanceof SliderModuleSetting slider) drawSlider(context, slider, panel.x, rowY, allowedHeight);
                             }
@@ -918,17 +929,6 @@ public class RunalScreen extends Screen {
         int textHeight = PortableTextRenderer.height(text, pixelHeight);
         int drawY = boxY + (boxHeight - textHeight) / 2;
         PortableTextRenderer.draw(context, text, x, drawY, pixelHeight, color);
-    }
-
-    private String truncatePortable(String text, int maxWidth, int pixelHeight) {
-        if (maxWidth <= 0) return "";
-        if (PortableTextRenderer.width(text, pixelHeight) <= maxWidth) return text;
-        String ellipsis = "...";
-        for (int length = text.length() - 1; length > 0; length--) {
-            String candidate = text.substring(0, length) + ellipsis;
-            if (PortableTextRenderer.width(candidate, pixelHeight) <= maxWidth) return candidate;
-        }
-        return ellipsis;
     }
 
     /**
@@ -1000,7 +1000,7 @@ public class RunalScreen extends Screen {
                     COLUMN_WIDTH,
                     HEADER_HEIGHT,
                     COLOR_HEADER_TEXT,
-                    22
+                    24
             );
 
             boolean lastVisibleEnabled = !visible.isEmpty() && visible.get(visible.size() - 1).isEnabled();
@@ -1042,7 +1042,7 @@ public class RunalScreen extends Screen {
                 int rowColor = brighten(module.isEnabled() ? accentColor() : COLOR_GRAY26, (int) (hover * 10f));
 
                 context.fill(panel.x, rowY, panel.x + COLUMN_WIDTH, rowY + ROW_HEIGHT, rowColor);
-                String moduleName = truncatePortable(module.getName(), COLUMN_WIDTH - 12, 15);
+                String moduleName = module.getName();
                 int textColor = mixColor(COLOR_TEXT, 0xFFFFFFFF, Math.max(toggle, hover * 0.45f));
                 drawPortableCenteredText(
                         context,
@@ -1052,7 +1052,7 @@ public class RunalScreen extends Screen {
                         COLUMN_WIDTH,
                         ROW_HEIGHT,
                         textColor,
-                        15
+                        (int) MODULE_TEXT_SIZE
                 );
 
                 if (hover > 0.97f && !module.getDescription().isEmpty()) {
@@ -1094,16 +1094,16 @@ public class RunalScreen extends Screen {
                         if (allowedHeight >= 9) {
                             int labelHeight = setting instanceof ColorModuleSetting ? PICKER_TOP_ROW : allowedHeight;
                             boolean isToggle = setting instanceof ToggleModuleSetting;
+                            boolean isGroup = setting instanceof SettingGroup;
                             boolean isChip = setting instanceof EnumModuleSetting || setting instanceof KeybindModuleSetting;
                             String valueText = isToggle || setting instanceof ColorModuleSetting || setting instanceof SettingGroup
                                     ? ""
                                     : setting.getDisplayValue();
-                            int valueWidth = PortableTextRenderer.width(valueText, 12);
+                            int rowTextSize = isGroup ? (int) GROUP_TEXT_SIZE : (int) SETTING_TEXT_SIZE;
+                            int valueTextSize = isChip ? (int) CHIP_TEXT_SIZE : rowTextSize;
+                            int valueWidth = PortableTextRenderer.width(valueText, valueTextSize);
                             int valueX = panel.x + COLUMN_WIDTH - valueWidth - 12;
-                            int labelMaxWidth = isToggle
-                                    ? COLUMN_WIDTH - SUB_TEXT_LEFT_PADDING - 40
-                                    : valueX - SUB_TEXT_LEFT_PADDING - panel.x - 10;
-                            String labelText = truncatePortable(setting.getLabel(), labelMaxWidth, 12);
+                            String labelText = setting.getLabel();
 
                             drawSettingControlPortable(context, setting, panel.x, rowY, labelHeight);
                             drawPortableLeftText(
@@ -1113,12 +1113,12 @@ public class RunalScreen extends Screen {
                                     rowY,
                                     labelHeight,
                                     0xFFFFFFFF,
-                                    12
+                                    rowTextSize
                             );
 
                             if (isChip) {
                                 int chipWidth = valueWidth + 10;
-                                int chipHeight = Math.min(15, allowedHeight - 2);
+                                int chipHeight = Math.min(18, allowedHeight - 2);
                                 int chipX = panel.x + COLUMN_WIDTH - 10 - chipWidth;
                                 int chipY = rowY + (allowedHeight - chipHeight) / 2;
                                 drawPortableCenteredText(
@@ -1129,7 +1129,7 @@ public class RunalScreen extends Screen {
                                         chipWidth,
                                         chipHeight,
                                         listening ? 0xFFFFD966 : 0xFFFFFFFF,
-                                        12
+                                        (int) CHIP_TEXT_SIZE
                                 );
                             } else if (!valueText.isEmpty()) {
                                 boolean textEditing = setting instanceof TextModuleSetting textSetting && textSetting.isEditing();
@@ -1140,7 +1140,7 @@ public class RunalScreen extends Screen {
                                         rowY,
                                         allowedHeight,
                                         listening || textEditing ? accentColor() : 0xFFFFFFFF,
-                                        12
+                                        (int) SETTING_TEXT_SIZE
                                 );
                             }
 
@@ -1175,7 +1175,7 @@ public class RunalScreen extends Screen {
         }
 
         if (tooltipText != null) {
-            int tooltipWidth = PortableTextRenderer.width(tooltipText, 12) + 16;
+            int tooltipWidth = PortableTextRenderer.width(tooltipText, (int) SETTING_TEXT_SIZE) + 16;
             int tooltipHeight = SUB_ROW_HEIGHT + 6;
             int boxX = tooltipX;
             if (boxX + tooltipWidth > viewportWidth) {
@@ -1192,7 +1192,7 @@ public class RunalScreen extends Screen {
                     tooltipWidth,
                     tooltipHeight,
                     0xFFFFFFFF,
-                    12
+                    (int) SETTING_TEXT_SIZE
             );
         }
 
@@ -1284,29 +1284,40 @@ public class RunalScreen extends Screen {
             int knobX = (int) lerp(trackX + 1, trackX + trackWidth - knobSize - 1, knobT);
             drawRoundedRect(context, knobX, trackY + (trackHeight - knobSize) / 2, knobSize, knobSize, 0xFFFFFFFF, knobSize / 2);
         } else if (setting instanceof ColorModuleSetting color) {
-            drawRoundedRect(context, x + COLUMN_WIDTH - 25, controlY - 1, 14, 10, COLOR_GRAY26, 2);
-            drawRoundedRect(context, x + COLUMN_WIDTH - 24, controlY, 12, 8, color.getColor(), 2);
-        } else if (setting instanceof SettingGroup group) {
-            drawPortableCenteredText(
+            PortableTextRenderer.drawColorSwatch(
                     context,
-                    group.isExpanded() ? ">" : "v",
-                    x + COLUMN_WIDTH - 22,
-                    y,
-                    16,
-                    h,
-                    0xFFFFFFFF,
-                    12
+                    x + COLUMN_WIDTH - 40,
+                    y + (h - 20) / 2,
+                    34,
+                    20,
+                    color.getColor()
             );
+        } else if (setting instanceof SettingGroup group) {
+            drawChevronPortable(context, x + COLUMN_WIDTH - 16, y + h / 2, group.isExpanded(), 0xFFFFFFFF);
         } else if (setting instanceof EnumModuleSetting || setting instanceof KeybindModuleSetting) {
             String value = setting.getDisplayValue();
-            int valueWidth = PortableTextRenderer.width(value, 12);
+            int valueWidth = PortableTextRenderer.width(value, (int) CHIP_TEXT_SIZE);
             int chipWidth = valueWidth + 10;
-            int chipHeight = Math.min(15, h - 2);
+            int chipHeight = Math.min(18, h - 2);
             int chipX = x + COLUMN_WIDTH - 10 - chipWidth;
             int chipY = y + (h - chipHeight) / 2;
             boolean listening = setting instanceof KeybindModuleSetting keybind && keybind.isListening();
             drawRoundedRect(context, chipX, chipY, chipWidth, chipHeight, listening ? 0xFFFFD966 : accentColor(), 4);
             drawRoundedRect(context, chipX + 1, chipY + 1, chipWidth - 2, chipHeight - 2, 0xFF2A2D34, 3);
+        }
+    }
+
+    /** Thick chevron matching Melinoe's chevron.svg, rasterized for VulkanMod. */
+    private void drawChevronPortable(GuiGraphicsExtractor context, int centerX, int centerY, boolean expanded, int color) {
+        for (int step = -10; step <= 10; step++) {
+            int advance = 10 - Math.abs(step);
+            if (expanded) {
+                int px = centerX - 6 + advance;
+                context.fill(px, centerY + step, px + 3, centerY + step + 2, color);
+            } else {
+                int py = centerY - 6 + advance;
+                context.fill(centerX + step, py, centerX + step + 2, py + 3, color);
+            }
         }
     }
 
@@ -1372,7 +1383,7 @@ public class RunalScreen extends Screen {
                 squareW,
                 PICKER_HEX_H,
                 colorSetting.isHexEditing() ? accentColor() : 0xFFFFFFFF,
-                12
+                (int) SETTING_TEXT_SIZE
         );
     }
 
@@ -1448,7 +1459,7 @@ public class RunalScreen extends Screen {
             String categoryName = panel.category;
             // Real vector text via NVG - no bitmap-atlas rescaling, so it stays crisp at any
             // size instead of the uneven stroke-thickness artifact the old scaled bitmap font had.
-            nvg.add(() -> NVGRenderer.textCentered(categoryName, px, py, COLUMN_WIDTH, HEADER_HEIGHT, 22f, COLOR_HEADER_TEXT));
+            nvg.add(() -> NVGRenderer.textCentered(categoryName, px, py, COLUMN_WIDTH, HEADER_HEIGHT, 24f, COLOR_HEADER_TEXT));
 
             boolean lastVisibleEnabled = !visible.isEmpty() && visible.get(visible.size() - 1).isEnabled();
             // If anything in this panel is expanded, its settings (transparent, showing the
@@ -1506,10 +1517,7 @@ public class RunalScreen extends Screen {
                 int rowYCapture = rowY;
                 int rowColorCapture = rowColor;
                 nvg.add(() -> drawModuleRowNVG(px, rowYCapture, COLUMN_WIDTH, ROW_HEIGHT, rowColorCapture));
-                // Melinoe's 18f module-name size assumes its 240px-wide panel - Runal's is 124px,
-                // so copying that size verbatim overflowed/clipped long names ("Accessory Cooldown"
-                // etc). Sized to actually fit the column, with truncation as a hard safety net.
-                String moduleName = truncateToFitNVG(module.getName(), COLUMN_WIDTH - 12, MODULE_TEXT_SIZE);
+                String moduleName = module.getName();
                 int textColor = mixColor(COLOR_TEXT, 0xFFFFFFFF, Math.max(toggle, hover * 0.45f));
                 nvg.add(() -> NVGRenderer.textCentered(moduleName, px, rowYCapture, COLUMN_WIDTH, ROW_HEIGHT, MODULE_TEXT_SIZE, textColor));
 
@@ -1555,28 +1563,28 @@ public class RunalScreen extends Screen {
                                 // Toggles show state via the switch itself, not text - matches
                                 // Melinoe's BooleanSetting.kt, which never draws "On"/"Off".
                                 boolean isToggle = setting instanceof ToggleModuleSetting;
+                                boolean isGroup = setting instanceof SettingGroup;
                                 // Enum/Keybind values sit centered inside the chip drawn by
                                 // drawSettingControlNVG, in pure white - matches Melinoe's
                                 // SelectorSetting.kt/KeybindSetting.kt exactly.
                                 boolean isChip = setting instanceof EnumModuleSetting || setting instanceof KeybindModuleSetting;
-                                String valueText = isToggle ? "" : setting.getDisplayValue();
-                                int valueWidth = (int) estimateNvgTextWidth(valueText, SETTING_TEXT_SIZE);
+                                String valueText = isToggle || isGroup ? "" : setting.getDisplayValue();
+                                float rowTextSize = isGroup ? GROUP_TEXT_SIZE : SETTING_TEXT_SIZE;
+                                float valueTextSize = isChip ? CHIP_TEXT_SIZE : SETTING_TEXT_SIZE;
+                                int valueWidth = (int) estimateNvgTextWidth(valueText, valueTextSize);
                                 boolean textEditing = setting instanceof TextModuleSetting textSetting && textSetting.isEditing();
                                 int valueColor = isChip ? (listening ? 0xFFFFD966 : 0xFFFFFFFF) : (listening || textEditing ? accentColor() : 0xFFFFFFFF);
                                 int valueX = isChip ? px + COLUMN_WIDTH - valueWidth - 15 : px + COLUMN_WIDTH - valueWidth - 12;
-                                // Truncate the label if it would otherwise run under the value/chip -
-                                // COLUMN_WIDTH is narrow enough that long labels + long values collide.
-                                int labelMaxWidth = isToggle ? COLUMN_WIDTH - SUB_TEXT_LEFT_PADDING - 40 : valueX - SUB_TEXT_LEFT_PADDING - px - 10;
-                                String labelText = truncateToFitNVG(setting.getLabel(), labelMaxWidth, SETTING_TEXT_SIZE);
+                                String labelText = setting.getLabel();
                                 // Draw the control background first. Enum/keybind text occupies
                                 // the chip itself, so drawing the chip after the text hid the value.
                                 nvg.add(() -> drawSettingControlNVG(setting, px, settingRowY, allowedHeight, subHovered));
                                 nvg.add(() -> {
-                                    NVGRenderer.textLeft(labelText, px + SUB_TEXT_LEFT_PADDING, settingRowY, allowedHeight, SETTING_TEXT_SIZE, 0xFFFFFFFF);
+                                    NVGRenderer.textLeft(labelText, px + SUB_TEXT_LEFT_PADDING, settingRowY, allowedHeight, rowTextSize, 0xFFFFFFFF);
                                     if (isChip) {
-                                        float actualValueWidth = NVGRenderer.textWidth(valueText, SETTING_TEXT_SIZE);
+                                        float actualValueWidth = NVGRenderer.textWidth(valueText, CHIP_TEXT_SIZE);
                                         float chipW = actualValueWidth + 10f;
-                                        float chipH = Math.min(15f, allowedHeight - 2f);
+                                        float chipH = Math.min(18f, allowedHeight - 2f);
                                         float chipX = px + COLUMN_WIDTH - 10f - chipW;
                                         float chipY = settingRowY + (allowedHeight - chipH) / 2f;
                                         NVGRenderer.textCentered(
@@ -1585,7 +1593,7 @@ public class RunalScreen extends Screen {
                                                 chipY,
                                                 chipW,
                                                 chipH,
-                                                SETTING_TEXT_SIZE,
+                                                CHIP_TEXT_SIZE,
                                                 valueColor
                                         );
                                     } else if (!isToggle) {
@@ -1703,8 +1711,7 @@ public class RunalScreen extends Screen {
     }
 
     private void drawSettingSeparatorNVG(int x, int y, int width) {
-        NVGRenderer.rect(x + 10, y, width - 20, 1, 0x30FFFFFF);
-        NVGRenderer.rect(x + 10, y, 28, 1, alpha(accentColor(), 0.60f));
+        NVGRenderer.rect(x + 10, y, width - 20, 1, alpha(accentColor(), 0.60f));
     }
 
     /** Toggle/color/group controls as flat square vector shapes - no radius. */
@@ -1729,12 +1736,14 @@ public class RunalScreen extends Screen {
             float knobX = lerp(trackX + knobR, trackX + trackW - knobR, knobT);
             NVGRenderer.circle(knobX, trackY + trackH / 2f, knobR, 0xFFFFFFFF);
         } else if (setting instanceof ColorModuleSetting color) {
-            NVGRenderer.rect(x + COLUMN_WIDTH - 25, controlY - 1, 14, 10, COLOR_GRAY26, 2f);
-            NVGRenderer.rect(x + COLUMN_WIDTH - 24, controlY, 12, 8, color.getColor(), 1.5f);
+            float swatchX = x + COLUMN_WIDTH - 40f;
+            float swatchY = y + (h - 20f) / 2f;
+            NVGRenderer.rect(swatchX, swatchY, 34f, 20f, color.getColor(), 5f);
+            NVGRenderer.hollowRect(swatchX, swatchY, 34f, 20f, 2f, darkenColor(color.getColor()), 5f);
         } else if (setting instanceof SettingGroup group) {
             // Down when collapsed, sideways (rotated 90 degrees) when expanded - matches
             // Melinoe's DropdownSetting.kt chevron rotation exactly.
-            drawChevronNVG(x + COLUMN_WIDTH - 16, y + h / 2f, 5f, group.isExpanded(), 0xFFFFFFFF);
+            drawChevronNVG(x + COLUMN_WIDTH - 18, y + h / 2f, 11f, group.isExpanded(), 0xFFFFFFFF);
         } else if (setting instanceof EnumModuleSetting || setting instanceof KeybindModuleSetting) {
             // Bordered chip matching Melinoe's SelectorSetting.kt/KeybindSetting.kt: gray38 fill,
             // accent-colored hollow outline, pure white text (drawn separately via overlay).
@@ -1742,9 +1751,9 @@ public class RunalScreen extends Screen {
             // SETTING_TEXT_SIZE) - measuring via the old vanilla font gave a mismatched width,
             // which is why the text looked off-center inside the chip.
             String value = setting.getDisplayValue();
-            int valueWidth = (int) NVGRenderer.textWidth(value, SETTING_TEXT_SIZE);
+            int valueWidth = (int) NVGRenderer.textWidth(value, CHIP_TEXT_SIZE);
             float chipW = valueWidth + 10f;
-            float chipH = Math.min(15f, h - 2f);
+            float chipH = Math.min(18f, h - 2f);
             float chipX = x + COLUMN_WIDTH - 10 - chipW;
             float chipY = y + (h - chipH) / 2f;
             boolean listening = setting instanceof KeybindModuleSetting keybind && keybind.isListening();
@@ -1757,12 +1766,12 @@ public class RunalScreen extends Screen {
     private void drawChevronNVG(float centerX, float centerY, float armLength, boolean expanded, int color) {
         if (expanded) {
             // Points right: apex at (centerX + armLength, centerY)
-            NVGRenderer.line(centerX - armLength * 0.4f, centerY - armLength, centerX + armLength * 0.4f, centerY, 1.6f, color);
-            NVGRenderer.line(centerX + armLength * 0.4f, centerY, centerX - armLength * 0.4f, centerY + armLength, 1.6f, color);
+            NVGRenderer.line(centerX - armLength * 0.55f, centerY - armLength, centerX + armLength * 0.45f, centerY, 4f, color);
+            NVGRenderer.line(centerX + armLength * 0.45f, centerY, centerX - armLength * 0.55f, centerY + armLength, 4f, color);
         } else {
             // Points down: apex at (centerX, centerY + armLength)
-            NVGRenderer.line(centerX - armLength, centerY - armLength * 0.4f, centerX, centerY + armLength * 0.4f, 1.6f, color);
-            NVGRenderer.line(centerX, centerY + armLength * 0.4f, centerX + armLength, centerY - armLength * 0.4f, 1.6f, color);
+            NVGRenderer.line(centerX - armLength, centerY - armLength * 0.55f, centerX, centerY + armLength * 0.45f, 4f, color);
+            NVGRenderer.line(centerX, centerY + armLength * 0.45f, centerX + armLength, centerY - armLength * 0.55f, 4f, color);
         }
     }
 

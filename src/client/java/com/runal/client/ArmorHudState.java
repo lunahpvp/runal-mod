@@ -6,4 +6,5 @@ public class ArmorHudState {
     public static int x = 8;
     public static int y = 72;
     public static String orientation = "Horizontal";
+    public static int widgetColor = 0xFF7CFFB2;
 }

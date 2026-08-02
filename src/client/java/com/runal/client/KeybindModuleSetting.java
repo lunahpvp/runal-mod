@@ -13,15 +13,21 @@ import net.minecraft.client.input.KeyEvent;
 public class KeybindModuleSetting implements ModuleSetting {
 
     private final KeyMapping keyMapping;
+    private final String label;
     private boolean listening = false;
 
     public KeybindModuleSetting(KeyMapping keyMapping) {
+        this("Keybind", keyMapping);
+    }
+
+    public KeybindModuleSetting(String label, KeyMapping keyMapping) {
+        this.label = label;
         this.keyMapping = keyMapping;
     }
 
     @Override
     public String getLabel() {
-        return "Keybind";
+        return label;
     }
 
     @Override

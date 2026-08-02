@@ -5,6 +5,9 @@ import java.util.List;
 
 public interface Module {
     String getName();
+    default String getConfigKey() {
+        return getName().toLowerCase().replaceAll("[^a-z0-9]+", "_").replaceAll("^_|_$", "");
+    }
     String getCategory();
     boolean isEnabled();
     void toggle();

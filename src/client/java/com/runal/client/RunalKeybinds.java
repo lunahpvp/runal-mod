@@ -45,6 +45,20 @@ final class RunalKeybinds {
     private static KeyMapping openMenuAlt;
     private static KeyMapping autoGG;
     private static KeyMapping autoTrash;
+    private static KeyMapping scepterWarps;
+    private static KeyMapping scepterClass;
+    private static KeyMapping scepterAchievements;
+    private static KeyMapping scepterPity;
+    private static KeyMapping scepterShards;
+    private static KeyMapping scepterVaults;
+    private static KeyMapping scepterTrash;
+    private static KeyMapping scepterAfk;
+    private static KeyMapping scepterRadio;
+    private static KeyMapping scepterDance;
+    private static KeyMapping scepterSigilShop;
+    private static KeyMapping scepterClaimLuck;
+    private static KeyMapping scepterSuicide;
+    private static long suicideConfirmUntil;
 
     private RunalKeybinds() {
     }
@@ -68,6 +82,19 @@ final class RunalKeybinds {
 
         registerSeries(HOTBAR_SWAPS, "hotbarswap");
         registerSeries(COMMAND_BINDS, "commandbind");
+        scepterWarps = register("scepter_warps");
+        scepterClass = register("scepter_class");
+        scepterAchievements = register("scepter_achievements");
+        scepterPity = register("scepter_pity");
+        scepterShards = register("scepter_shards");
+        scepterVaults = register("scepter_vaults");
+        scepterTrash = register("scepter_trash");
+        scepterAfk = register("scepter_afk");
+        scepterRadio = register("scepter_radio");
+        scepterDance = register("scepter_dance");
+        scepterSigilShop = register("scepter_sigilshop");
+        scepterClaimLuck = register("scepter_claimluck");
+        scepterSuicide = register("scepter_suicide");
         autoGG = register("autogg");
         autoTrash = register("autotrash");
         ClientTickEvents.END_CLIENT_TICK.register(RunalKeybinds::onEndTick);
@@ -136,6 +163,20 @@ final class RunalKeybinds {
     static KeyMapping commandBind(int index) {
         return COMMAND_BINDS[index];
     }
+
+    static KeyMapping scepterWarps() { return scepterWarps; }
+    static KeyMapping scepterClass() { return scepterClass; }
+    static KeyMapping scepterAchievements() { return scepterAchievements; }
+    static KeyMapping scepterPity() { return scepterPity; }
+    static KeyMapping scepterShards() { return scepterShards; }
+    static KeyMapping scepterVaults() { return scepterVaults; }
+    static KeyMapping scepterTrash() { return scepterTrash; }
+    static KeyMapping scepterAfk() { return scepterAfk; }
+    static KeyMapping scepterRadio() { return scepterRadio; }
+    static KeyMapping scepterDance() { return scepterDance; }
+    static KeyMapping scepterSigilShop() { return scepterSigilShop; }
+    static KeyMapping scepterClaimLuck() { return scepterClaimLuck; }
+    static KeyMapping scepterSuicide() { return scepterSuicide; }
 
     private static KeyMapping register(String name) {
         return register(name, GLFW.GLFW_KEY_UNKNOWN);
@@ -227,6 +268,20 @@ final class RunalKeybinds {
             );
         }
 
+        drain(scepterWarps, () -> runCommand(client, "warps"));
+        drain(scepterClass, () -> runCommand(client, "class"));
+        drain(scepterAchievements, () -> runCommand(client, "achievements"));
+        drain(scepterPity, () -> runCommand(client, "pity"));
+        drain(scepterShards, () -> runCommand(client, "shards"));
+        drain(scepterVaults, () -> runCommand(client, "pv"));
+        drain(scepterTrash, () -> runCommand(client, "trash"));
+        drain(scepterAfk, () -> runCommand(client, "afk"));
+        drain(scepterRadio, () -> runCommand(client, "radio"));
+        drain(scepterDance, () -> runCommand(client, "dance"));
+        drain(scepterSigilShop, () -> runCommand(client, "sigilshop"));
+        drain(scepterClaimLuck, () -> runCommand(client, "claimluck"));
+        drain(scepterSuicide, () -> confirmSuicide(client));
+
         drain(autoGG, () -> toggle(
                 client,
                 "Auto GG",
@@ -291,6 +346,18 @@ final class RunalKeybinds {
         if (value.isEmpty()) return;
         if (value.startsWith("/")) value = value.substring(1);
         client.getConnection().sendCommand(value);
+    }
+
+    private static void confirmSuicide(Minecraft client) {
+        long now = System.currentTimeMillis();
+        if (now <= suicideConfirmUntil) {
+            suicideConfirmUntil = 0L;
+            runCommand(client, "suicide");
+            return;
+        }
+
+        suicideConfirmUntil = now + 3_000L;
+        Message.commandError("Press the Suicide key again within 3 seconds to confirm.");
     }
 
     private static void createWaypoint(Minecraft client) {
