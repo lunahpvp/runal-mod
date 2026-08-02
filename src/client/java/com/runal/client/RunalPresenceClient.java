@@ -267,7 +267,7 @@ public final class RunalPresenceClient {
         HttpRequest request = HttpRequest.newBuilder(uri)
                 .timeout(Duration.ofSeconds(5))
                 .header("Accept", "application/json")
-                .header("User-Agent", "Runal/1.1")
+                .header("User-Agent", "Runal/1.2")
                 .GET()
                 .build();
         return verifyClaim(request, name, expectedUuid, 0);
