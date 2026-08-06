@@ -14,7 +14,9 @@
 		"ChatCommandSuggestionsMixin",
 		"ChatScreenEmojiMixin",
 		"ChatComponentEmojiMixin",
-		"BossHealthOverlayScaleMixin"
+		"BossHealthOverlayScaleMixin",
+		"TooltipScaleMixin",
+		"ViewModelMixin"
 
 	],
 	"injectors": {

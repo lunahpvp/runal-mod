@@ -352,6 +352,55 @@ public class BuiltinModules {
         });
 
         ModuleManager.register(new Module() {
+            private final List<ModuleSetting> settings = List.of(
+                    new SliderModuleSetting("Scale", 0.5f, 1.0f, 0.01f, () -> TooltipScaleState.INSTANCE.scale, v -> TooltipScaleState.INSTANCE.scale = v)
+            );
+            public String getName() { return "Tooltip Scale"; }
+            public String getDescription() { return "Customize the scale of tooltips."; }
+            public String getCategory() { return "Visual"; }
+            public boolean isEnabled() { return TooltipScaleState.INSTANCE.isEnabled(); }
+            public void toggle() { TooltipScaleState.INSTANCE.toggle(); }
+            public List<ModuleSetting> getSettings() { return settings; }
+        });
+
+        ModuleManager.register(new Module() {
+            private final ViewModelState state = ViewModelState.INSTANCE;
+            private final List<ModuleSetting> settings = List.of(
+                    new ToggleModuleSetting("No Equip Animation", () -> state.noEquipAnimation, v -> state.noEquipAnimation = v)
+                            .withDescription("Removes the item swapping animation."),
+                    new ToggleModuleSetting("Apply To Hand", () -> state.applyToHand, v -> state.applyToHand = v)
+                            .withDescription("Applies the viewmodel changes to the empty hand."),
+                    new SliderModuleSetting("Swing Speed", 0f, 50f, 1f, () -> state.swingSpeed, v -> state.swingSpeed = v),
+                    new SettingGroup("Position", List.of(
+                            new SliderModuleSetting("Offset X", -2f, 2f, 0.01f, () -> state.offsetX, v -> state.offsetX = v),
+                            new SliderModuleSetting("Offset Y", -2f, 2f, 0.01f, () -> state.offsetY, v -> state.offsetY = v),
+                            new SliderModuleSetting("Offset Z", -2f, 2f, 0.01f, () -> state.offsetZ, v -> state.offsetZ = v)
+                    )),
+                    new SettingGroup("Scale", List.of(
+                            new SliderModuleSetting("Scale X", 0.1f, 3f, 0.01f, () -> state.scaleX, v -> state.scaleX = v),
+                            new SliderModuleSetting("Scale Y", 0.1f, 3f, 0.01f, () -> state.scaleY, v -> state.scaleY = v),
+                            new SliderModuleSetting("Scale Z", 0.1f, 3f, 0.01f, () -> state.scaleZ, v -> state.scaleZ = v)
+                    )),
+                    new SettingGroup("Rotation", List.of(
+                            new SliderModuleSetting("Rotation X", -180f, 180f, 0.5f, () -> state.rotX, v -> state.rotX = v),
+                            new SliderModuleSetting("Rotation Y", -180f, 180f, 0.5f, () -> state.rotY, v -> state.rotY = v),
+                            new SliderModuleSetting("Rotation Z", -180f, 180f, 0.5f, () -> state.rotZ, v -> state.rotZ = v)
+                    )),
+                    new SettingGroup("Swing Animation", List.of(
+                            new SliderModuleSetting("Swing X", 0f, 2f, 0.01f, () -> state.swingX, v -> state.swingX = v),
+                            new SliderModuleSetting("Swing Y", 0f, 2f, 0.01f, () -> state.swingY, v -> state.swingY = v),
+                            new SliderModuleSetting("Swing Z", 0f, 2f, 0.01f, () -> state.swingZ, v -> state.swingZ = v)
+                    ))
+            );
+            public String getName() { return "View Model"; }
+            public String getDescription() { return "Customize the position, scale, rotation and animations of your held items."; }
+            public String getCategory() { return "Visual"; }
+            public boolean isEnabled() { return state.isEnabled(); }
+            public void toggle() { state.toggle(); }
+            public List<ModuleSetting> getSettings() { return settings; }
+        });
+
+        ModuleManager.register(new Module() {
             public String getName() { return "Inventory HUD"; }
             public String getDescription() { return "Shows the three main inventory rows without opening your inventory."; }
             public String getCategory() { return "Visual"; }

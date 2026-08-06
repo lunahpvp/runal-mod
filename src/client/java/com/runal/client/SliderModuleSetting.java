@@ -28,7 +28,9 @@ public class SliderModuleSetting implements ModuleSetting {
     @Override
     public String getDisplayValue() {
         float value = getValue();
-        return Math.abs(value - Math.round(value)) < 0.001f ? String.valueOf(Math.round(value)) : String.format("%.1f", value);
+        if (Math.abs(value - Math.round(value)) < 0.001f) return String.valueOf(Math.round(value));
+        int decimals = step > 0f && step < 0.1f ? 2 : 1;
+        return String.format("%." + decimals + "f", value);
     }
 
     @Override
