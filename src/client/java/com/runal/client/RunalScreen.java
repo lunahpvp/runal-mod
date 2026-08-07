@@ -91,7 +91,7 @@ public class RunalScreen extends Screen {
     /** Melinoe's exact ClickGUI.gray26 - flat panel/header/off-row fill for the NVG chrome. */
     private static final int COLOR_GRAY26 = 0xFF1A1A1A;
 
-    private static final long OPEN_ANIM_DURATION_MS = 650L;
+    private static final long OPEN_ANIM_DURATION_MS = 450L;
     private long openTimeMs = 0L;
 
     private EditBox searchBox;
