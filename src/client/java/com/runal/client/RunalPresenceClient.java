@@ -19,6 +19,7 @@ import java.net.http.HttpResponse;
 import java.net.http.WebSocket;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -47,8 +48,8 @@ public final class RunalPresenceClient {
                 thread.setDaemon(true);
                 return thread;
             });
-    private static final Set<String> ACTIVE_USERS = ConcurrentHashMap.newKeySet();
-    private static final Set<String> ACTIVE_NAMES = ConcurrentHashMap.newKeySet();
+    private static volatile Set<String> activeUsers = Set.of();
+    private static volatile Set<String> activeNames = Set.of();
     private static final Set<String> VERIFIED_CLAIMS = ConcurrentHashMap.newKeySet();
     private static final Set<String> CURRENT_CLAIMS = ConcurrentHashMap.newKeySet();
     private static final AtomicBoolean CONNECTING = new AtomicBoolean(false);
@@ -77,8 +78,8 @@ public final class RunalPresenceClient {
                     normalizeName(client.player.getGameProfile().name())
             )) return true;
         }
-        return (uuid != null && ACTIVE_USERS.contains(normalizeUuid(uuid.toString())))
-                || (name != null && ACTIVE_NAMES.contains(normalizeName(name)));
+        return (uuid != null && activeUsers.contains(normalizeUuid(uuid.toString())))
+                || (name != null && activeNames.contains(normalizeName(name)));
     }
 
     private static void connect() {
@@ -108,8 +109,8 @@ public final class RunalPresenceClient {
         connectionWanted = false;
         GENERATION.incrementAndGet();
         CONNECTING.set(false);
-        ACTIVE_USERS.clear();
-        ACTIVE_NAMES.clear();
+        activeUsers = Set.of();
+        activeNames = Set.of();
         CURRENT_CLAIMS.clear();
         SYNC_GENERATION.incrementAndGet();
 
@@ -244,15 +245,21 @@ public final class RunalPresenceClient {
                 .thenRun(() -> {
                     if (syncGeneration != SYNC_GENERATION.get()) return;
 
-                    ACTIVE_USERS.clear();
-                    ACTIVE_NAMES.clear();
+                    Set<String> newUsers = new HashSet<>();
+                    Set<String> newNames = new HashSet<>();
                     for (CompletableFuture<PresenceClaim> check : checks) {
                         PresenceClaim claim = check.join();
                         if (claim == null) continue;
-                        ACTIVE_USERS.add(claim.uuid());
-                        ACTIVE_NAMES.add(normalizeName(claim.name()));
+                        newUsers.add(claim.uuid());
+                        newNames.add(normalizeName(claim.name()));
                     }
-                    LOGGER.info("Runal presence verified {} user(s)", ACTIVE_USERS.size());
+                    // Swap the reference instead of mutating the existing sets in place -
+                    // isActiveUser() reads these from the render thread with no synchronization,
+                    // so a clear()-then-repopulate sequence would be visible mid-update as an
+                    // empty set, making every other player's badge flicker off on each sync.
+                    activeUsers = Set.copyOf(newUsers);
+                    activeNames = Set.copyOf(newNames);
+                    LOGGER.info("Runal presence verified {} user(s)", newUsers.size());
                 });
     }
 
@@ -363,8 +370,8 @@ public final class RunalPresenceClient {
                         reason == null || reason.isBlank() ? "no reason provided" : reason
                 );
                 socket = null;
-                ACTIVE_USERS.clear();
-                ACTIVE_NAMES.clear();
+                activeUsers = Set.of();
+                activeNames = Set.of();
                 scheduleReconnect(generation);
             }
             return WebSocket.Listener.super.onClose(webSocket, statusCode, reason);
@@ -374,8 +381,8 @@ public final class RunalPresenceClient {
         public void onError(WebSocket webSocket, Throwable error) {
             if (generation == GENERATION.get()) {
                 socket = null;
-                ACTIVE_USERS.clear();
-                ACTIVE_NAMES.clear();
+                activeUsers = Set.of();
+                activeNames = Set.of();
                 LOGGER.warn("Presence socket error: {}", error.getMessage());
                 scheduleReconnect(generation);
             }
