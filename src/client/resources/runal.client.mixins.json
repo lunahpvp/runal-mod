@@ -15,7 +15,6 @@
 		"ChatScreenEmojiMixin",
 		"ChatComponentEmojiMixin",
 		"BossHealthOverlayScaleMixin",
-		"TooltipScaleMixin",
 		"ViewModelMixin"
 
 	],

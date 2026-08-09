@@ -352,18 +352,6 @@ public class BuiltinModules {
         });
 
         ModuleManager.register(new Module() {
-            private final List<ModuleSetting> settings = List.of(
-                    new SliderModuleSetting("Scale", 0.5f, 1.0f, 0.01f, () -> TooltipScaleState.INSTANCE.scale, v -> TooltipScaleState.INSTANCE.scale = v)
-            );
-            public String getName() { return "Tooltip Scale"; }
-            public String getDescription() { return "Customize the scale of tooltips."; }
-            public String getCategory() { return "Visual"; }
-            public boolean isEnabled() { return TooltipScaleState.INSTANCE.isEnabled(); }
-            public void toggle() { TooltipScaleState.INSTANCE.toggle(); }
-            public List<ModuleSetting> getSettings() { return settings; }
-        });
-
-        ModuleManager.register(new Module() {
             private final ViewModelState state = ViewModelState.INSTANCE;
             private final List<ModuleSetting> settings = List.of(
                     new ToggleModuleSetting("No Equip Animation", () -> state.noEquipAnimation, v -> state.noEquipAnimation = v)
