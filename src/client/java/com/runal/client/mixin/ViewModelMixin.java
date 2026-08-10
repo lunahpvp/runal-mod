@@ -42,7 +42,8 @@ public abstract class ViewModelMixin {
     *///?} else {
     @Inject(
             method = "renderArmWithItem",
-            at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;pushPose()V", shift = At.Shift.AFTER)
+            at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;pushPose()V", shift = At.Shift.AFTER),
+            require = 0
     )
     private void runal$applyPositionOffset(
             AbstractClientPlayer player,
@@ -74,7 +75,8 @@ public abstract class ViewModelMixin {
 
     @Inject(
             method = "renderArmWithItem",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/ItemInHandRenderer;renderItem(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/item/ItemDisplayContext;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;I)V")
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/ItemInHandRenderer;renderItem(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/item/ItemDisplayContext;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;I)V"),
+            require = 0
     )
     private void runal$applyRotationAndScale(
             AbstractClientPlayer player,
@@ -106,7 +108,7 @@ public abstract class ViewModelMixin {
         matrices.scale(state.scaleX, state.scaleY, state.scaleZ);
     }
 
-    @Inject(method = "renderPlayerArm", at = @At("HEAD"))
+    @Inject(method = "renderPlayerArm", at = @At("HEAD"), require = 0)
     private void runal$applyHandPositionOffset(
             PoseStack matrices,
             SubmitNodeCollector queue,
@@ -132,7 +134,8 @@ public abstract class ViewModelMixin {
 
     @Inject(
             method = "renderPlayerArm",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/entity/EntityRenderDispatcher;getPlayerRenderer(Lnet/minecraft/client/player/AbstractClientPlayer;)Lnet/minecraft/client/renderer/entity/player/AvatarRenderer;")
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/entity/EntityRenderDispatcher;getPlayerRenderer(Lnet/minecraft/client/player/AbstractClientPlayer;)Lnet/minecraft/client/renderer/entity/player/AvatarRenderer;"),
+            require = 0
     )
     private void runal$applyHandRotationAndScale(
             PoseStack matrices,
@@ -163,7 +166,8 @@ public abstract class ViewModelMixin {
 
     @Redirect(
             method = "swingArm",
-            at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;translate(FFF)V", ordinal = 0)
+            at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;translate(FFF)V", ordinal = 0),
+            require = 0
     )
     private void runal$modifySwingTranslation(PoseStack instance, float x, float y, float z) {
         ViewModelState state = ViewModelState.INSTANCE;
@@ -174,7 +178,7 @@ public abstract class ViewModelMixin {
         }
     }
 
-    @Inject(method = "shouldInstantlyReplaceVisibleItem", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "shouldInstantlyReplaceVisibleItem", at = @At("HEAD"), cancellable = true, require = 0)
     private void runal$skipEquipAnimation(ItemStack from, ItemStack to, CallbackInfoReturnable<Boolean> cir) {
         ViewModelState state = ViewModelState.INSTANCE;
         if (state.isEnabled() && state.noEquipAnimation) {
@@ -182,7 +186,7 @@ public abstract class ViewModelMixin {
         }
     }
 
-    @Inject(method = "tick", at = @At("TAIL"))
+    @Inject(method = "tick", at = @At("TAIL"), require = 0)
     private void runal$forceItemHeight(CallbackInfo ci) {
         ViewModelState state = ViewModelState.INSTANCE;
         if (state.isEnabled() && state.noEquipAnimation) {
