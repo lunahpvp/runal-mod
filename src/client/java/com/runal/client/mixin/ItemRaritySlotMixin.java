@@ -1,5 +1,6 @@
 package com.runal.client.mixin;
 
+import com.runal.client.ItemRarityDebug;
 import com.runal.client.ItemRarityState;
 import com.runal.client.ItemRarityUtil;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -18,6 +19,7 @@ public abstract class ItemRaritySlotMixin {
         ItemRarityState state = ItemRarityState.INSTANCE;
         if (!state.isEnabled() || !state.showInInventory) return;
 
+        ItemRarityDebug.log("inventory", slot.getItem());
         Integer color = ItemRarityUtil.getRarityColor(slot.getItem());
         if (color == null) return;
 

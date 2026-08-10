@@ -1,5 +1,6 @@
 package com.runal.client.mixin;
 
+import com.runal.client.ItemRarityDebug;
 import com.runal.client.ItemRarityState;
 import com.runal.client.ItemRarityUtil;
 import net.minecraft.client.DeltaTracker;
@@ -29,6 +30,7 @@ public abstract class ItemRarityHotbarMixin {
         ItemRarityState state = ItemRarityState.INSTANCE;
         if (!state.isEnabled() || !state.showInHotbar) return;
 
+        ItemRarityDebug.log("hotbar", stack);
         Integer color = ItemRarityUtil.getRarityColor(stack);
         if (color == null) return;
 
