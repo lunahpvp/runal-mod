@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.projectile.FishingHook;
@@ -22,6 +23,17 @@ public class DiscordPresenceController {
     private static final long MIN_UPDATE_INTERVAL_MS = 15_000L;
     private static final int MINING_CONFIRM_TICKS = 10;
     private static final long MINING_HOLD_MS = 2_000L;
+
+    private static final String[] MAGE_RPG_ADDRESSES = {
+            "magerpg.minehut.gg",
+            "magerpg.minekeep.gg",
+    };
+    private static final String[] SCEPTER_RPG_ADDRESSES = {
+            "scepterrpg.minehut.gg",
+            "scepterrpg.minekeep.gg",
+    };
+
+    private static volatile String detectedServerName = "ScepterRPG";
 
     private static int miningStreakTicks = 0;
     private static long lastConfirmedMiningMs = 0;
@@ -44,6 +56,12 @@ public class DiscordPresenceController {
         thread.setDaemon(true);
         thread.start();
 
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            var serverData = handler.getServerData();
+            detectedServerName = detectServerName(serverData != null ? serverData.ip : null);
+        });
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> detectedServerName = "ScepterRPG");
+
         ClientTickEvents.END_CLIENT_TICK.register(mc -> {
             if (DiscordPresenceState.enabled) updatePendingText();
         });
@@ -54,11 +72,23 @@ public class DiscordPresenceController {
         });
     }
 
+    private static String detectServerName(String ip) {
+        if (ip == null) return "ScepterRPG";
+        String normalized = ip.toLowerCase();
+        for (String address : MAGE_RPG_ADDRESSES) {
+            if (normalized.contains(address)) return "MageRPG";
+        }
+        for (String address : SCEPTER_RPG_ADDRESSES) {
+            if (normalized.contains(address)) return "ScepterRPG";
+        }
+        return "ScepterRPG";
+    }
+
     private static void updatePendingText() {
-        pendingDetails = "Playing on ScepterRPG";
+        pendingDetails = "Playing on " + detectedServerName;
 
         if (BossTitleState.isFightingBoss()) {
-            pendingState = "Fighting " + BossTitleState.lastBossName + " in Scepter";
+            pendingState = "Fighting " + BossTitleState.lastBossName + " in " + detectedServerName;
             return;
         }
 
