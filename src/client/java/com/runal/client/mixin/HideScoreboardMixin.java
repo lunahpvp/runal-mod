@@ -1,25 +1,25 @@
 package com.runal.client.mixin;
 
 import com.runal.client.HideScoreboardState;
-import net.minecraft.client.gui.Gui;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.world.scores.DisplaySlot;
+import net.minecraft.world.scores.Objective;
+import net.minecraft.world.scores.Scoreboard;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(Gui.class)
+// Cancelling the render call didn't work (confirmed with VulkanMod both on and off), which
+// means whatever's actually drawing the sidebar isn't reachable through that render method at
+// all on this version. Going at the data layer instead: if there's no sidebar objective to
+// begin with, nothing has anything to draw, regardless of which renderer asks.
+@Mixin(Scoreboard.class)
 public abstract class HideScoreboardMixin {
 
-    //? if 1.21.4 || 1.21.11 {
-    /*@Inject(method = "renderScoreboardSidebar", at = @At("HEAD"), cancellable = true, require = 0)
-    private void runal$hideScoreboard(GuiGraphicsExtractor context, CallbackInfo ci) {
-    *///?} else {
-    @Inject(method = "renderScoreboardSidebar", at = @At("HEAD"), cancellable = true, require = 0)
-    private void runal$hideScoreboard(CallbackInfo ci) {
-    //?}
-        if (HideScoreboardState.INSTANCE.isEnabled()) {
-            ci.cancel();
+    @Inject(method = "getDisplayObjective", at = @At("RETURN"), cancellable = true, require = 0)
+    private void runal$hideScoreboard(DisplaySlot slot, CallbackInfoReturnable<Objective> cir) {
+        if (HideScoreboardState.INSTANCE.isEnabled() && slot == DisplaySlot.SIDEBAR) {
+            cir.setReturnValue(null);
         }
     }
 }
