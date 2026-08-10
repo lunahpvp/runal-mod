@@ -161,19 +161,70 @@ public class HudEditorScreen extends Screen {
         if (dragging == null) return false;
         int x = snap(mouseX - dragOffsetX);
         int y = snap(mouseY - dragOffsetY);
-        if ("session".equals(dragging)) { SessionManagerState.x = x; SessionManagerState.y = y; }
-        if ("performance".equals(dragging)) { PerformanceHudState.x = x; PerformanceHudState.y = y; }
-        if ("armor".equals(dragging)) { ArmorHudState.x = x; ArmorHudState.y = y; }
-        if ("inventory".equals(dragging)) { InventoryHudState.x = x; InventoryHudState.y = y; }
-        if ("events".equals(dragging)) { EventTrackerState.x = x; EventTrackerState.y = y; }
-        if ("itemCooldowns".equals(dragging)) { ItemCooldownHudState.x = x; ItemCooldownHudState.y = y; }
-        if ("dungeonTracker".equals(dragging)) { DungeonTrackerState.x = x; DungeonTrackerState.y = y; }
-        if ("lowTitle".equals(dragging)) { LowHealthWarning.lowTitleX = x; LowHealthWarning.lowTitleY = y; }
-        if ("midTitle".equals(dragging)) { LowHealthWarning.midTitleX = x; LowHealthWarning.midTitleY = y; }
-        if ("bossTitle".equals(dragging)) { BossTitleState.x = x; BossTitleState.y = y; }
-        if ("bossDefeats".equals(dragging)) { BossDefeatState.x = x; BossDefeatState.y = y; }
+
+        if ("session".equals(dragging)) {
+            int[] p = clamp(x, y, 112, 24);
+            SessionManagerState.x = p[0]; SessionManagerState.y = p[1];
+        }
+        if ("performance".equals(dragging)) {
+            int[] p = clamp(x, y, 112, 46);
+            PerformanceHudState.x = p[0]; PerformanceHudState.y = p[1];
+        }
+        if ("armor".equals(dragging)) {
+            int[] p = clamp(x, y, UtilityHudRenderer.armorHudWidth(), UtilityHudRenderer.armorHudHeight());
+            ArmorHudState.x = p[0]; ArmorHudState.y = p[1];
+        }
+        if ("inventory".equals(dragging)) {
+            int[] p = clamp(x, y, InventoryHudState.WIDTH, InventoryHudState.HEIGHT);
+            InventoryHudState.x = p[0]; InventoryHudState.y = p[1];
+        }
+        if ("events".equals(dragging)) {
+            int[] p = clamp(x, y, 100, 40);
+            EventTrackerState.x = p[0]; EventTrackerState.y = p[1];
+        }
+        if ("itemCooldowns".equals(dragging)) {
+            int[] p = clamp(x, y, 100, 40);
+            ItemCooldownHudState.x = p[0]; ItemCooldownHudState.y = p[1];
+        }
+        if ("dungeonTracker".equals(dragging)) {
+            int[] p = clamp(x, y, 100, 62);
+            DungeonTrackerState.x = p[0]; DungeonTrackerState.y = p[1];
+        }
+        if ("lowTitle".equals(dragging)) {
+            String preview = LowHealthWarning.lowHpTitle.isEmpty() ? "LOW HP" : LowHealthWarning.lowHpTitle;
+            int w = (int) (font.width(preview) * UtilityHudRenderer.WARNING_TITLE_SCALE);
+            int h = (int) (font.lineHeight * UtilityHudRenderer.WARNING_TITLE_SCALE);
+            int[] p = clamp(x, y, w, h);
+            LowHealthWarning.lowTitleX = p[0]; LowHealthWarning.lowTitleY = p[1];
+        }
+        if ("midTitle".equals(dragging)) {
+            String preview = LowHealthWarning.midHpTitle.isEmpty() ? "MID HP" : LowHealthWarning.midHpTitle;
+            int w = (int) (font.width(preview) * UtilityHudRenderer.WARNING_TITLE_SCALE);
+            int h = (int) (font.lineHeight * UtilityHudRenderer.WARNING_TITLE_SCALE);
+            int[] p = clamp(x, y, w, h);
+            LowHealthWarning.midTitleX = p[0]; LowHealthWarning.midTitleY = p[1];
+        }
+        if ("bossTitle".equals(dragging)) {
+            String preview = BossTitleState.currentText != null ? BossTitleState.currentText : "Flame Prison!";
+            int w = (int) (font.width(preview) * BossTitleState.scale);
+            int h = (int) (font.lineHeight * BossTitleState.scale);
+            // x/y here are the widget's center, not its top-left, so clamp the equivalent
+            // top-left corner and convert back rather than clamping the center directly.
+            int[] p = clamp(x - w / 2, y - h / 2, w, h);
+            BossTitleState.x = p[0] + w / 2; BossTitleState.y = p[1] + h / 2;
+        }
+        if ("bossDefeats".equals(dragging)) {
+            int[] p = clamp(x, y, 100, 16);
+            BossDefeatState.x = p[0]; BossDefeatState.y = p[1];
+        }
         ModuleConfig.save();
         return true;
+    }
+
+    private int[] clamp(int x, int y, int w, int h) {
+        int clampedX = Math.max(0, Math.min(x, width - w));
+        int clampedY = Math.max(0, Math.min(y, height - h));
+        return new int[]{clampedX, clampedY};
     }
 
     //? if 1.21.4 {
