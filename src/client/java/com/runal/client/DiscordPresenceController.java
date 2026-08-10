@@ -15,8 +15,10 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DiscordPresenceController {
-    private static final String CLIENT_ID = "1523235604106580019";
-    private static final String LARGE_IMAGE_KEY = "runal_icon";
+    private static final String SCEPTER_CLIENT_ID = "1523235604106580019";
+    private static final String SCEPTER_LARGE_IMAGE_KEY = "runal_icon";
+    private static final String MAGE_RPG_CLIENT_ID = "1536203081027555328";
+    private static final String MAGE_RPG_LARGE_IMAGE_KEY = "mage";
     private static final String SCEPTER_DISCORD = "https://discord.gg/98FWkw7VtD";
     private static final String RUNAL_DISCORD = "https://discord.gg/G9JrtKjQdh";
     private static final long RECONNECT_INTERVAL_MS = 15_000L;
@@ -48,6 +50,7 @@ public class DiscordPresenceController {
     private static long lastSendMs;
     private static long lastConnectAttemptMs;
     private static long sessionStartMs;
+    private static String activeClientId;
 
     public static void register() {
         sessionStartMs = System.currentTimeMillis();
@@ -70,6 +73,14 @@ public class DiscordPresenceController {
             running.set(false);
             client.close();
         });
+    }
+
+    private static String currentClientId() {
+        return "MageRPG".equals(detectedServerName) ? MAGE_RPG_CLIENT_ID : SCEPTER_CLIENT_ID;
+    }
+
+    private static String currentLargeImageKey() {
+        return "MageRPG".equals(detectedServerName) ? MAGE_RPG_LARGE_IMAGE_KEY : SCEPTER_LARGE_IMAGE_KEY;
     }
 
     private static String detectServerName(String ip) {
@@ -150,17 +161,22 @@ public class DiscordPresenceController {
                 continue;
             }
 
-            if (!client.isConnected()) {
+            String targetClientId = currentClientId();
+            boolean needsReconnect = client.isConnected() && !targetClientId.equals(activeClientId);
+
+            if (!client.isConnected() || needsReconnect) {
                 long now = System.currentTimeMillis();
-                if (now - lastConnectAttemptMs < RECONNECT_INTERVAL_MS) {
+                if (now - lastConnectAttemptMs < RECONNECT_INTERVAL_MS && !needsReconnect) {
                     sleep(500);
                     continue;
                 }
                 lastConnectAttemptMs = now;
-                if (!client.connect(CLIENT_ID)) {
+                if (!client.connect(targetClientId)) {
+                    activeClientId = null;
                     sleep(500);
                     continue;
                 }
+                activeClientId = targetClientId;
                 lastSentDetails = null;
                 lastSentState = null;
             }
@@ -208,7 +224,7 @@ public class DiscordPresenceController {
         activity.add("timestamps", timestamps);
 
         JsonObject assets = new JsonObject();
-        assets.addProperty("large_image", LARGE_IMAGE_KEY);
+        assets.addProperty("large_image", currentLargeImageKey());
         assets.addProperty("large_text", "Runal");
         activity.add("assets", assets);
 
