@@ -54,11 +54,20 @@ public class AutoGGController {
         // typing could say "has found" themselves. Otherwise, this server marks its own genuine
         // broadcasts with a "|" bar, so require both that and the actual find text.
         if (fullText.contains("[G]")) return false;
-        if (!fullText.contains("|")) return false;
 
-        // Achievement completions have no rarity to filter on - any genuine broadcast counts.
-        if (fullText.contains(ACHIEVEMENT_MARKER)) return true;
+        if (fullText.contains("|")) {
+            // Achievement completions have no rarity to filter on - any genuine broadcast counts.
+            if (fullText.contains(ACHIEVEMENT_MARKER)) return true;
+            return matchesFoundRarity(fullText, runs, ranges);
+        }
 
+        // MageRPG's own "has found" broadcasts don't carry a "|" bar at all, so they'd never
+        // reach the check above - this is a separate, independent path for that server's format,
+        // same rarity-color logic, without requiring the bar. Does not affect the Scepter path.
+        return matchesFoundRarity(fullText, runs, ranges);
+    }
+
+    private static boolean matchesFoundRarity(String fullText, List<StyledRun> runs, List<int[]> ranges) {
         int foundIdx = fullText.indexOf(FOUND_MARKER);
         if (foundIdx < 0) return false;
         int itemStart = foundIdx + FOUND_MARKER.length();

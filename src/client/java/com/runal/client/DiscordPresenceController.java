@@ -20,6 +20,7 @@ public class DiscordPresenceController {
     private static final String MAGE_RPG_CLIENT_ID = "1536203081027555328";
     private static final String MAGE_RPG_LARGE_IMAGE_KEY = "mage";
     private static final String SCEPTER_DISCORD = "https://discord.gg/98FWkw7VtD";
+    private static final String MAGE_RPG_DISCORD = "https://discord.gg/7CYqksVRkC";
     private static final String RUNAL_DISCORD = "https://discord.gg/G9JrtKjQdh";
     private static final long RECONNECT_INTERVAL_MS = 15_000L;
     private static final long MIN_UPDATE_INTERVAL_MS = 15_000L;
@@ -229,10 +230,11 @@ public class DiscordPresenceController {
         activity.add("assets", assets);
 
         JsonArray buttons = new JsonArray();
-        JsonObject scepterButton = new JsonObject();
-        scepterButton.addProperty("label", "Play ScepterRPG");
-        scepterButton.addProperty("url", SCEPTER_DISCORD);
-        buttons.add(scepterButton);
+        boolean onMageRpg = "MageRPG".equals(detectedServerName);
+        JsonObject serverButton = new JsonObject();
+        serverButton.addProperty("label", onMageRpg ? "Play MageRPG" : "Play ScepterRPG");
+        serverButton.addProperty("url", onMageRpg ? MAGE_RPG_DISCORD : SCEPTER_DISCORD);
+        buttons.add(serverButton);
 
         JsonObject runalButton = new JsonObject();
         runalButton.addProperty("label", "Use Runal");

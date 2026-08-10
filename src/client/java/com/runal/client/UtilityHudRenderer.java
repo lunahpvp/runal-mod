@@ -219,7 +219,12 @@ public class UtilityHudRenderer {
                 String key = "item:" + name;
                 activeKeys.add(key);
                 String value = valueFor(seconds, percent, key, nowTick);
-                entries.add(new CooldownEntry(name, value, ItemCooldownHudState.nameColor, ItemCooldownHudState.valueColor));
+                // Use the item's own real name color (its actual rarity color, straight from the
+                // game) instead of one fixed color for every item, falling back to the configured
+                // default only for items with no explicit color of their own.
+                var itemColor = stack.getHoverName().getStyle().getColor();
+                int nameColor = itemColor != null ? (0xFF000000 | itemColor.getValue()) : ItemCooldownHudState.nameColor;
+                entries.add(new CooldownEntry(name, value, nameColor, ItemCooldownHudState.valueColor));
             }
             CooldownDurationEstimator.pruneExcept("item:", activeKeys);
         }
