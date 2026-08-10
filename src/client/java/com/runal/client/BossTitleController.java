@@ -34,21 +34,18 @@ public class BossTitleController {
 
     private static final int DISPLAY_TICKS = 4 * 20;
 
-    // MageRPG boss chat lines don't actually carry a "[BOSS]" tag (confirmed against a
-    // live "Delta [Lvl 450]: Lightspeed: Phantom Massacre!" line, which has no such tag) -
-    // matching that shape against ANY name would also fire on normal player chat, since
-    // players show their own level the same way, so this is restricted to known boss names.
+    // MageRPG boss chat lines are inconsistent about the "[BOSS]" tag - sometimes it's there,
+    // sometimes not (confirmed against live examples of both, plus varying separators: ":",
+    // ">>", no separator at all). Matching "Name [Lvl ...]" against ANY name would also fire
+    // on normal player chat, since players show their own level the same way, so this is
+    // restricted to known boss names, and searches anywhere in the line (not full-line
+    // anchored) so it doesn't matter what does or doesn't come before the name.
     private static final String[] MAGE_RPG_BOSS_NAMES = {
             "Delta",
     };
 
     private static final Pattern SCEPTER_BOSS_LINE_PATTERN = buildScepterPattern();
     private static final Pattern MAGE_RPG_BOSS_LINE_PATTERN = buildMageRpgPattern();
-    private static final Pattern MAGE_RPG_TAGGED_BOSS_LINE_PATTERN = Pattern.compile(
-            "^(?:\\[[^\\]]*]\\s*)*\\[BOSS]\\s+(.+?)\\s+"
-                    + "\\[Lvl\\s+[^\\]]+]\\s*(?:»|:|>)\\s*(.+)$",
-            Pattern.CASE_INSENSITIVE
-    );
 
     private static Pattern buildScepterPattern() {
         StringBuilder names = new StringBuilder();
@@ -65,17 +62,22 @@ public class BossTitleController {
             if (i > 0) names.append('|');
             names.append(Pattern.quote(MAGE_RPG_BOSS_NAMES[i]));
         }
+        // Not anchored to the start/end of the line on purpose - a "[BOSS] " prefix, or any
+        // other prefix, or its absence, is irrelevant as long as "Name [Lvl ...]" shows up
+        // somewhere followed by a message.
         return Pattern.compile(
-                "^(?:\\[[^\\]]*]\\s*)*(" + names + ")\\s+"
-                        + "\\[Lvl\\s+[^\\]]+]\\s*(?:»|:|>)\\s*(.+)$",
+                "(" + names + ")\\s*\\[Lvl\\s+[^\\]]+]\\s*(?:[:»>]\\s*)?(.+)$",
                 Pattern.CASE_INSENSITIVE
         );
     }
 
+    private static final Pattern LEGACY_FORMATTING_CODE = Pattern.compile("(?i)§[0-9A-FK-OR]");
+
     public static void register() {
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (overlay) return;
-            handleMessage(message.getString().trim());
+            String text = LEGACY_FORMATTING_CODE.matcher(message.getString()).replaceAll("");
+            handleMessage(text.trim());
         });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -93,13 +95,12 @@ public class BossTitleController {
         if (text.isEmpty()) return;
 
         Matcher matcher = SCEPTER_BOSS_LINE_PATTERN.matcher(text);
-        if (!matcher.matches()) {
+        boolean matched = matcher.matches();
+        if (!matched) {
             matcher = MAGE_RPG_BOSS_LINE_PATTERN.matcher(text);
-            if (!matcher.matches()) {
-                matcher = MAGE_RPG_TAGGED_BOSS_LINE_PATTERN.matcher(text);
-                if (!matcher.matches()) return;
-            }
+            matched = matcher.find();
         }
+        if (!matched) return;
 
         BossTitleState.currentBossName = matcher.group(1);
         BossTitleState.currentText = firstWords(matcher.group(2), MAX_WORDS);
