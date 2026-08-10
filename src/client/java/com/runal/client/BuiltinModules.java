@@ -88,7 +88,7 @@ public class BuiltinModules {
             );
             public String getName() { return "Item Rarity"; }
             public String getDescription() { return "Draws a colored border around items based on their rarity."; }
-            public String getCategory() { return "Visual"; }
+            public String getCategory() { return "Misc"; }
             public boolean isEnabled() { return state.isEnabled(); }
             public void toggle() { state.toggle(); }
             public List<ModuleSetting> getSettings() { return settings; }
