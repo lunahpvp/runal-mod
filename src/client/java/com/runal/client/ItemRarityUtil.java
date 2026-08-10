@@ -1,16 +1,17 @@
 package com.runal.client;
 
-import net.minecraft.core.component.DataComponents;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Style;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.ItemLore;
-
-import java.util.List;
+//? if 26.2 {
+/*import net.minecraft.network.chat.TextColor;
+*///?}
 
 /**
- * Detects item rarity from the item's lore, e.g. "&e&lLEGENDARY WEAPON" or "&e&lLEGENDARY
- * ARMOR" - the server marks rarity there rather than via any data component. Scans from the
- * bottom up and uses the first non-blank line, rather than assuming the very last lore entry
- * is it - some items have a blank trailing line under the rarity text for spacing.
+ * Detects item rarity from the item's own display-name color, not its lore - the server colors
+ * the plain (non-bold) name itself with the rarity's legacy code, e.g. &e for Legendary, &2 for
+ * Scroll. Same style-comparison approach AutoGGController already uses for chat rarity, since
+ * that's proven to correctly read these exact legacy color codes on this server.
  */
 public final class ItemRarityUtil {
     private ItemRarityUtil() {
@@ -19,28 +20,29 @@ public final class ItemRarityUtil {
     public static Integer getRarityColor(ItemStack stack) {
         if (stack.isEmpty()) return null;
 
-        ItemLore lore = stack.get(DataComponents.LORE);
-        if (lore == null) return null;
-
-        List<net.minecraft.network.chat.Component> lines = lore.lines();
+        Style style = stack.getHoverName().getStyle();
         ItemRarityState state = ItemRarityState.INSTANCE;
 
-        for (int i = lines.size() - 1; i >= 0; i--) {
-            String line = lines.get(i).getString().trim();
-            if (line.isEmpty()) continue;
-
-            String upper = line.toUpperCase();
-            if (upper.contains("MYTHICAL")) return state.mythicalColor;
-            if (upper.contains("EPIC")) return state.epicColor;
-            if (upper.contains("LEGENDARY")) return state.legendaryColor;
-            if (upper.contains("SCROLL")) return state.scrollColor;
-            if (upper.contains("RARE")) return state.rareColor;
-            if (upper.contains("UNCOMMON")) return state.uncommonColor;
-            // First non-blank line from the bottom didn't match any rarity word - stop here
-            // rather than keep scanning upward into flavor text that might coincidentally
-            // contain one of these words (e.g. "prepare" contains "rare").
-            return null;
-        }
+        if (isColor(style, ChatFormatting.LIGHT_PURPLE)) return state.mythicalColor;
+        if (isColor(style, ChatFormatting.DARK_PURPLE)) return state.epicColor;
+        if (isColor(style, ChatFormatting.YELLOW)) return state.legendaryColor;
+        if (isColor(style, ChatFormatting.DARK_GREEN)) return state.scrollColor;
+        if (isColor(style, ChatFormatting.BLUE)) return state.rareColor;
+        if (isColor(style, ChatFormatting.GREEN)) return state.uncommonColor;
         return null;
+    }
+
+    private static boolean isColor(Style style, ChatFormatting expected) {
+        //? if 1.21.4 || 1.21.11 || 26.1.2 {
+        return style.getColor() != null
+                && expected.getColor() != null
+                && style.getColor().getValue() == expected.getColor();
+        //?}
+        //? if 26.2 {
+        /*TextColor expectedColor = TextColor.fromLegacyFormat(expected);
+        return style.getColor() != null
+                && expectedColor != null
+                && style.getColor().getValue() == expectedColor.getValue();
+        *///?}
     }
 }
