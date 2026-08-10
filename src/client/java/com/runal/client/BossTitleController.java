@@ -36,16 +36,22 @@ public class BossTitleController {
 
     // MageRPG boss chat lines are inconsistent about the "[BOSS]" tag - sometimes it's there,
     // sometimes not (confirmed against live examples of both, plus varying separators: ":",
-    // ">>", no separator at all). Matching "Name [Lvl ...]" against ANY name would also fire
-    // on normal player chat, since players show their own level the same way, so this is
-    // restricted to known boss names, and searches anywhere in the line (not full-line
-    // anchored) so it doesn't matter what does or doesn't come before the name.
+    // "»", no separator at all). When the tag IS present, that alone reliably marks a genuine
+    // boss broadcast (players can't put "[BOSS]" in front of their own chat), so ANY name is
+    // accepted there - this is what makes newly-seen bosses like "Fallen Minerian" work without
+    // needing to be added to a list. When the tag is absent there's no other distinguishing
+    // signal from normal player chat (players show their own level the same way too), so that
+    // path stays restricted to known boss names.
     private static final String[] MAGE_RPG_BOSS_NAMES = {
             "Delta",
     };
 
     private static final Pattern SCEPTER_BOSS_LINE_PATTERN = buildScepterPattern();
-    private static final Pattern MAGE_RPG_BOSS_LINE_PATTERN = buildMageRpgPattern();
+    private static final Pattern MAGE_RPG_TAGGED_BOSS_LINE_PATTERN = Pattern.compile(
+            "\\[BOSS]\\s*(.+?)\\s*\\[Lvl\\s+[^\\]]+]\\s*(?:[:»>]\\s*)?(.+)$",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern MAGE_RPG_NAMED_BOSS_LINE_PATTERN = buildMageRpgNamedPattern();
 
     private static Pattern buildScepterPattern() {
         StringBuilder names = new StringBuilder();
@@ -56,7 +62,7 @@ public class BossTitleController {
         return Pattern.compile("^(?:\\[[^\\]]*]\\s*)*(" + names + ")\\s*\\[[^\\]]*]\\s*:\\s*(.+)$");
     }
 
-    private static Pattern buildMageRpgPattern() {
+    private static Pattern buildMageRpgNamedPattern() {
         StringBuilder names = new StringBuilder();
         for (int i = 0; i < MAGE_RPG_BOSS_NAMES.length; i++) {
             if (i > 0) names.append('|');
@@ -97,7 +103,11 @@ public class BossTitleController {
         Matcher matcher = SCEPTER_BOSS_LINE_PATTERN.matcher(text);
         boolean matched = matcher.matches();
         if (!matched) {
-            matcher = MAGE_RPG_BOSS_LINE_PATTERN.matcher(text);
+            matcher = MAGE_RPG_TAGGED_BOSS_LINE_PATTERN.matcher(text);
+            matched = matcher.find();
+        }
+        if (!matched) {
+            matcher = MAGE_RPG_NAMED_BOSS_LINE_PATTERN.matcher(text);
             matched = matcher.find();
         }
         if (!matched) return;
