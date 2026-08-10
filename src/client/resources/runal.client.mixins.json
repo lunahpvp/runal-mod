@@ -17,8 +17,7 @@
 		"BossHealthOverlayScaleMixin",
 		"ViewModelMixin",
 		"HideScoreboardMixin",
-		"ItemRaritySlotMixin",
-		"ItemRarityHotbarMixin"
+		"ItemRaritySlotMixin"
 
 	],
 	"injectors": {

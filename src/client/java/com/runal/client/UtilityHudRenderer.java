@@ -68,6 +68,10 @@ public class UtilityHudRenderer {
             drawInventory(graphics, mc);
         }
 
+        if (ItemRarityState.INSTANCE.isEnabled() && ItemRarityState.INSTANCE.showInHotbar && mc.player != null) {
+            drawItemRarityHotbar(graphics, mc);
+        }
+
         drawCooldowns(graphics, mc);
 
         if (EventTrackerState.enabled && !EventTrackerState.events.isEmpty()) {
@@ -195,6 +199,35 @@ public class UtilityHudRenderer {
 
     private static String formatTicksAsSeconds(int ticks) {
         return ((ticks + 19) / 20) + "s";
+    }
+
+    // Injecting into Gui.renderSlot to draw this never actually fired on at least one real
+    // setup (confirmed via diagnostic logging - zero calls despite the toggle being on and
+    // items visibly in the hotbar), so this computes hotbar slot positions independently and
+    // draws through the same HudElementRegistry hook the other panels above already use
+    // successfully, instead of relying on an injection point that isn't reliable here.
+    private static void drawItemRarityHotbar(net.minecraft.client.gui.GuiGraphicsExtractor graphics, Minecraft mc) {
+        if (mc.player.containerMenu != mc.player.inventoryMenu) return;
+
+        ItemRarityState state = ItemRarityState.INSTANCE;
+        int hotbarX = graphics.guiWidth() / 2 - 91 + 3;
+        int hotbarY = graphics.guiHeight() - 22 + 3;
+        int t = Math.max(1, Math.round(state.thickness));
+
+        for (int i = 0; i < 9; i++) {
+            ItemStack stack = mc.player.getInventory().getItem(i);
+            Integer color = ItemRarityUtil.getRarityColor(stack);
+            if (color == null) continue;
+
+            int x = hotbarX + i * 20;
+            int y = hotbarY;
+            int x2 = x + 16;
+            int y2 = y + 16;
+            graphics.fill(x, y, x2, y + t, color);
+            graphics.fill(x, y2 - t, x2, y2, color);
+            graphics.fill(x, y, x + t, y2, color);
+            graphics.fill(x2 - t, y, x2, y2, color);
+        }
     }
 
     private static void drawCooldowns(net.minecraft.client.gui.GuiGraphicsExtractor graphics, Minecraft mc) {
