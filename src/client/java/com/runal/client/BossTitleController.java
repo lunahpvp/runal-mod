@@ -34,8 +34,17 @@ public class BossTitleController {
 
     private static final int DISPLAY_TICKS = 4 * 20;
 
+    // MageRPG boss chat lines don't actually carry a "[BOSS]" tag (confirmed against a
+    // live "Delta [Lvl 450]: Lightspeed: Phantom Massacre!" line, which has no such tag) -
+    // matching that shape against ANY name would also fire on normal player chat, since
+    // players show their own level the same way, so this is restricted to known boss names.
+    private static final String[] MAGE_RPG_BOSS_NAMES = {
+            "Delta",
+    };
+
     private static final Pattern SCEPTER_BOSS_LINE_PATTERN = buildScepterPattern();
-    private static final Pattern MAGE_RPG_BOSS_LINE_PATTERN = Pattern.compile(
+    private static final Pattern MAGE_RPG_BOSS_LINE_PATTERN = buildMageRpgPattern();
+    private static final Pattern MAGE_RPG_TAGGED_BOSS_LINE_PATTERN = Pattern.compile(
             "^(?:\\[[^\\]]*]\\s*)*\\[BOSS]\\s+(.+?)\\s+"
                     + "\\[Lvl\\s+[^\\]]+]\\s*(?:»|:|>)\\s*(.+)$",
             Pattern.CASE_INSENSITIVE
@@ -48,6 +57,19 @@ public class BossTitleController {
             names.append(Pattern.quote(BOSS_NAMES[i]));
         }
         return Pattern.compile("^(?:\\[[^\\]]*]\\s*)*(" + names + ")\\s*\\[[^\\]]*]\\s*:\\s*(.+)$");
+    }
+
+    private static Pattern buildMageRpgPattern() {
+        StringBuilder names = new StringBuilder();
+        for (int i = 0; i < MAGE_RPG_BOSS_NAMES.length; i++) {
+            if (i > 0) names.append('|');
+            names.append(Pattern.quote(MAGE_RPG_BOSS_NAMES[i]));
+        }
+        return Pattern.compile(
+                "^(?:\\[[^\\]]*]\\s*)*(" + names + ")\\s+"
+                        + "\\[Lvl\\s+[^\\]]+]\\s*(?:»|:|>)\\s*(.+)$",
+                Pattern.CASE_INSENSITIVE
+        );
     }
 
     public static void register() {
@@ -73,7 +95,10 @@ public class BossTitleController {
         Matcher matcher = SCEPTER_BOSS_LINE_PATTERN.matcher(text);
         if (!matcher.matches()) {
             matcher = MAGE_RPG_BOSS_LINE_PATTERN.matcher(text);
-            if (!matcher.matches()) return;
+            if (!matcher.matches()) {
+                matcher = MAGE_RPG_TAGGED_BOSS_LINE_PATTERN.matcher(text);
+                if (!matcher.matches()) return;
+            }
         }
 
         BossTitleState.currentBossName = matcher.group(1);
