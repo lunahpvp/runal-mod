@@ -72,6 +72,29 @@ public class BuiltinModules {
         });
 
         ModuleManager.register(new Module() {
+            private final ItemRarityState state = ItemRarityState.INSTANCE;
+            private final List<ModuleSetting> settings = List.of(
+                    new ToggleModuleSetting("Show in Inventory", () -> state.showInInventory, v -> state.showInInventory = v),
+                    new ToggleModuleSetting("Show in Hotbar", () -> state.showInHotbar, v -> state.showInHotbar = v),
+                    new SliderModuleSetting("Thickness", 1f, 4f, 1f, () -> state.thickness, v -> state.thickness = v),
+                    new SettingGroup("Colors", List.of(
+                            new ColorModuleSetting("Mythical", () -> state.mythicalColor, v -> state.mythicalColor = v),
+                            new ColorModuleSetting("Epic", () -> state.epicColor, v -> state.epicColor = v),
+                            new ColorModuleSetting("Legendary", () -> state.legendaryColor, v -> state.legendaryColor = v),
+                            new ColorModuleSetting("Scroll", () -> state.scrollColor, v -> state.scrollColor = v),
+                            new ColorModuleSetting("Rare", () -> state.rareColor, v -> state.rareColor = v),
+                            new ColorModuleSetting("Uncommon", () -> state.uncommonColor, v -> state.uncommonColor = v)
+                    ))
+            );
+            public String getName() { return "Item Rarity"; }
+            public String getDescription() { return "Draws a colored border around items based on their rarity."; }
+            public String getCategory() { return "Visual"; }
+            public boolean isEnabled() { return state.isEnabled(); }
+            public void toggle() { state.toggle(); }
+            public List<ModuleSetting> getSettings() { return settings; }
+        });
+
+        ModuleManager.register(new Module() {
             public String getName() { return "Hide Scoreboard"; }
             public String getDescription() { return "Hides the sidebar scoreboard."; }
             public String getCategory() { return "Visual"; }

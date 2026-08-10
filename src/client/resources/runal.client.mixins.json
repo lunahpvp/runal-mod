@@ -16,7 +16,9 @@
 		"ChatComponentEmojiMixin",
 		"BossHealthOverlayScaleMixin",
 		"ViewModelMixin",
-		"HideScoreboardMixin"
+		"HideScoreboardMixin",
+		"ItemRaritySlotMixin",
+		"ItemRarityHotbarMixin"
 
 	],
 	"injectors": {
