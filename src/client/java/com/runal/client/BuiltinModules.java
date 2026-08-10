@@ -72,6 +72,14 @@ public class BuiltinModules {
         });
 
         ModuleManager.register(new Module() {
+            public String getName() { return "Hide Scoreboard"; }
+            public String getDescription() { return "Hides the sidebar scoreboard."; }
+            public String getCategory() { return "Visual"; }
+            public boolean isEnabled() { return HideScoreboardState.INSTANCE.isEnabled(); }
+            public void toggle() { HideScoreboardState.INSTANCE.toggle(); }
+        });
+
+        ModuleManager.register(new Module() {
             private final List<ModuleSetting> settings = List.of(new KeybindModuleSetting(RunalKeybinds.hidePlayers()));
             public String getName() { return "Hide Players"; }
             public String getDescription() { return "Hides other players from rendering."; }
