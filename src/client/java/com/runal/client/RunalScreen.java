@@ -1043,7 +1043,12 @@ public class RunalScreen extends Screen {
 
                 context.fill(panel.x, rowY, panel.x + COLUMN_WIDTH, rowY + ROW_HEIGHT, rowColor);
                 String moduleName = module.getName();
-                int textColor = mixColor(COLOR_TEXT, 0xFFFFFFFF, Math.max(toggle, hover * 0.45f));
+                // toggle only, not hover - hover is a continuously-animating value, and
+                // PortableTextRenderer caches rasterized text by its exact color, so feeding an
+                // animated value in here regenerated (and re-uploaded to the GPU) a texture on
+                // nearly every frame for every hovered module. The row's own background color
+                // above already conveys hover state via a cheap direct fill, no caching involved.
+                int textColor = mixColor(COLOR_TEXT, 0xFFFFFFFF, toggle);
                 drawPortableCenteredText(
                         context,
                         moduleName,
