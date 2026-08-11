@@ -3,11 +3,15 @@ package com.runal.client;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.level.levelgen.Heightmap;
 //? if 1.21.4 {
 //?} else {
@@ -33,6 +37,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Live terrain color sampler for the World Map, the same technique JourneyMap/Xaero's
@@ -63,6 +69,7 @@ public final class TerrainMapCache {
     private static long nextTextureId;
     private static long tickCounter;
     private static String currentServer = "ScepterRPG";
+    private static final Logger LOGGER = LoggerFactory.getLogger("RunalTerrainMap");
 
     private TerrainMapCache() {
     }
@@ -71,6 +78,43 @@ public final class TerrainMapCache {
         ClientTickEvents.END_CLIENT_TICK.register(TerrainMapCache::onTick);
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> onJoin());
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> onDisconnect());
+
+        // Dynamically-registered textures like these don't survive a resource reload
+        // (F3+T, or the server pushing a new resource pack per zone) - Minecraft's own
+        // reload sweep closes them regardless of who registered them. Without this, every
+        // Tile's texture reference goes dead and all further sampling silently stops
+        // working for the rest of the session, which is exactly what "map freezes after a
+        // while" turned out to be.
+        ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(
+                new SimpleSynchronousResourceReloadListener() {
+                    @Override
+                    public Identifier getFabricId() {
+                        return Identifier.fromNamespaceAndPath("runal", "terrain_map_cache");
+                    }
+
+                    @Override
+                    public void onResourceManagerReload(ResourceManager manager) {
+                        onResourceReload();
+                    }
+                }
+        );
+    }
+
+    private static void onResourceReload() {
+        if (TILES.isEmpty()) return;
+        LOGGER.info("[TerrainMap] Resource reload detected - releasing {} tile textures and rebuilding", TILES.size());
+        flushDirty();
+        Minecraft mc = Minecraft.getInstance();
+        for (Tile tile : TILES.values()) {
+            try {
+                mc.getTextureManager().release(tile.id);
+            } catch (Exception ignored) {
+            }
+        }
+        TILES.clear();
+        QUEUED_OR_SAMPLED.clear();
+        PENDING_QUEUE.clear();
+        loadAllCachedTiles();
     }
 
     public static List<TileInfo> allTiles() {
