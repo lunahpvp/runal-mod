@@ -349,6 +349,37 @@ public class UtilityHudRenderer {
         return PortableTextRenderer.height("Ag", TRACKING_FONT_SIZE) + (vertical ? 76 : 16) + 7;
     }
 
+    private static List<TrackingLine> performanceHudLines(Minecraft mc) {
+        List<TrackingLine> lines = new ArrayList<>();
+        if (PerformanceHudState.fps) lines.add(new TrackingLine("FPS", String.valueOf(mc.getFps()), PerformanceHudState.nameColor, PerformanceHudState.valueColor));
+        if (PerformanceHudState.tps) lines.add(new TrackingLine("TPS", "20.0", PerformanceHudState.nameColor, PerformanceHudState.valueColor));
+        if (PerformanceHudState.ping && mc.player != null && mc.getConnection() != null && mc.getConnection().getPlayerInfo(mc.player.getUUID()) != null) {
+            lines.add(new TrackingLine("Ping", mc.getConnection().getPlayerInfo(mc.player.getUUID()).getLatency() + "ms", PerformanceHudState.nameColor, PerformanceHudState.valueColor));
+        }
+        if (PerformanceHudState.direction && mc.player != null) lines.add(new TrackingLine("Direction", mc.player.getDirection().getName(), PerformanceHudState.nameColor, PerformanceHudState.valueColor));
+        return lines;
+    }
+
+    /** Mirrors drawTrackingPanel's own sizing so the HUD editor's drag box always matches
+     *  the real panel exactly, instead of the fixed guess it used to be drawn with (which
+     *  drifted out of sync whenever a sub-toggle changed which lines were shown). */
+    public static int performanceHudWidth() {
+        Minecraft mc = Minecraft.getInstance();
+        int width = PortableTextRenderer.width("Performance", TRACKING_FONT_SIZE) + 12;
+        for (TrackingLine line : performanceHudLines(mc)) {
+            width = Math.max(width, PortableTextRenderer.width(line.label(), TRACKING_FONT_SIZE)
+                    + PortableTextRenderer.width(line.value(), TRACKING_FONT_SIZE) + 12);
+        }
+        return width;
+    }
+
+    public static int performanceHudHeight() {
+        Minecraft mc = Minecraft.getInstance();
+        int lineCount = Math.max(1, performanceHudLines(mc).size());
+        int textHeight = PortableTextRenderer.height("Ag", TRACKING_FONT_SIZE);
+        return textHeight + 3 + lineCount * (textHeight + 1);
+    }
+
     private static void drawInventory(net.minecraft.client.gui.GuiGraphicsExtractor graphics, Minecraft mc) {
         for (int row = 0; row < InventoryHudState.ROWS; row++) {
             for (int column = 0; column < InventoryHudState.COLUMNS; column++) {

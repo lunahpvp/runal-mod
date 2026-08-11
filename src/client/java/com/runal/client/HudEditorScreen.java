@@ -40,7 +40,7 @@ public class HudEditorScreen extends Screen {
         context.centeredText(font, "Drag widgets. Press Escape to close.", width / 2, 24, 0xFFA7A8B2);
 
         drawWidget(context, "Session", SessionManagerState.x, SessionManagerState.y, 112, 24, SessionManagerState.widgetColor);
-        drawWidget(context, "Performance", PerformanceHudState.x, PerformanceHudState.y, 112, 46, 0xAA101216);
+        drawWidget(context, "Performance", PerformanceHudState.x, PerformanceHudState.y, UtilityHudRenderer.performanceHudWidth(), UtilityHudRenderer.performanceHudHeight(), 0xAA101216);
         drawWidget(context, "Armor", ArmorHudState.x, ArmorHudState.y, UtilityHudRenderer.armorHudWidth(), UtilityHudRenderer.armorHudHeight(), 0xAA101216);
         drawWidget(context, "Inventory", InventoryHudState.x, InventoryHudState.y, InventoryHudState.WIDTH, InventoryHudState.HEIGHT, 0x55101216);
         drawWidget(context, "Events", EventTrackerState.x, EventTrackerState.y, 100, 40, 0xAA101216);
@@ -103,7 +103,7 @@ public class HudEditorScreen extends Screen {
 
     private boolean handleMouseClicked(int mouseX, int mouseY) {
         if (inside(mouseX, mouseY, SessionManagerState.x, SessionManagerState.y, 112, 24)) return startDrag("session", mouseX, mouseY, SessionManagerState.x, SessionManagerState.y);
-        if (inside(mouseX, mouseY, PerformanceHudState.x, PerformanceHudState.y, 112, 46)) return startDrag("performance", mouseX, mouseY, PerformanceHudState.x, PerformanceHudState.y);
+        if (inside(mouseX, mouseY, PerformanceHudState.x, PerformanceHudState.y, UtilityHudRenderer.performanceHudWidth(), UtilityHudRenderer.performanceHudHeight())) return startDrag("performance", mouseX, mouseY, PerformanceHudState.x, PerformanceHudState.y);
         int armorW = UtilityHudRenderer.armorHudWidth();
         int armorH = UtilityHudRenderer.armorHudHeight();
         if (inside(mouseX, mouseY, ArmorHudState.x, ArmorHudState.y, armorW, armorH)) return startDrag("armor", mouseX, mouseY, ArmorHudState.x, ArmorHudState.y);
@@ -167,7 +167,7 @@ public class HudEditorScreen extends Screen {
             SessionManagerState.x = p[0]; SessionManagerState.y = p[1];
         }
         if ("performance".equals(dragging)) {
-            int[] p = clamp(x, y, 112, 46);
+            int[] p = clamp(x, y, UtilityHudRenderer.performanceHudWidth(), UtilityHudRenderer.performanceHudHeight());
             PerformanceHudState.x = p[0]; PerformanceHudState.y = p[1];
         }
         if ("armor".equals(dragging)) {
