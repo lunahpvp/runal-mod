@@ -4,9 +4,15 @@ import com.google.gson.JsonParser;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.sounds.SoundEvents;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -25,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 public class UpdateChecker {
     private static final String LATEST_VERSION_URL = "https://runal-presence.lake-cockroach.workers.dev/latest-version";
     private static final String RELEASES_URL = "https://github.com/lunahpvp/runal-mod/releases/latest";
+    private static final Logger LOGGER = LoggerFactory.getLogger("RunalUpdateChecker");
 
     private static final HttpClient CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
@@ -32,7 +39,11 @@ public class UpdateChecker {
 
     public static void register() {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) ->
-                CompletableFuture.runAsync(UpdateChecker::checkForUpdate));
+                CompletableFuture.runAsync(UpdateChecker::checkForUpdate)
+                        .exceptionally(throwable -> {
+                            LOGGER.error("[UpdateChecker] check crashed", throwable);
+                            return null;
+                        }));
     }
 
     private static void checkForUpdate() {
@@ -45,9 +56,11 @@ public class UpdateChecker {
         Minecraft.getInstance().execute(() -> notifyUpdate(current, latest));
     }
 
+    /** Loom's "friendly string" for the local mod is "1.1.0+26.1.2" (version + MC qualifier) -
+     *  strip everything from "+" on, both for display and before parsing into numeric parts. */
     private static String currentVersion() {
         return FabricLoader.getInstance().getModContainer("runal")
-                .map(container -> container.getMetadata().getVersion().getFriendlyString())
+                .map(container -> container.getMetadata().getVersion().getFriendlyString().split("\\+")[0])
                 .orElse(null);
     }
 
@@ -64,6 +77,7 @@ public class UpdateChecker {
             var json = JsonParser.parseString(response.body()).getAsJsonObject();
             return json.has("version") ? json.get("version").getAsString() : null;
         } catch (Exception e) {
+            LOGGER.error("[UpdateChecker] fetch failed", e);
             return null;
         }
     }
@@ -81,7 +95,10 @@ public class UpdateChecker {
 
     private static int[] parseVersion(String version) {
         try {
-            String[] parts = version.trim().split("\\.");
+            // Loom's "friendly string" for the local mod is "1.1.0+26.1.2" (version + MC
+            // qualifier) - strip everything from "+" on before splitting into numeric parts.
+            String core = version.trim().split("\\+")[0];
+            String[] parts = core.split("\\.");
             int[] result = new int[3];
             for (int i = 0; i < 3; i++) result[i] = i < parts.length ? Integer.parseInt(parts[i]) : 0;
             return result;
@@ -106,27 +123,51 @@ public class UpdateChecker {
         Message.sendRaw(buildUpdateMessage(currentVersion, latestVersion));
     }
 
+    private static MutableComponent styled(String text, int color) {
+        return Component.literal(text).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(color)));
+    }
+
     private static MutableComponent buildUpdateMessage(String currentVersion, String latestVersion) {
-        String separator = "─".repeat(32);
         int accent = 0x7CFFB2;
         int dim = 0xAAAAAA;
-        int line = 0x606060;
 
-        return Message.colored(separator, line)
+        // Every piece below carries its own explicit style rather than relying on inheriting
+        // one from a shared parent - a styled separator() as the root once bled its
+        // strikethrough into every sibling appended after it.
+        MutableComponent message = Component.empty();
+        message.append(separator())
                 .append("\n")
-                .append(Message.colored("UPDATE AVAILABLE", accent).withStyle(Style.EMPTY.withBold(true)))
+                .append(Component.literal("UPDATE AVAILABLE").withStyle(Style.EMPTY.withColor(TextColor.fromRgb(accent)).withBold(true)))
                 .append("\n")
                 .append(Message.gradientText("Runal"))
-                .append(Message.colored(" grows stronger, a new version awaits.", dim))
+                .append(styled(" grows stronger, a new version awaits.", dim))
                 .append("\n")
-                .append(Message.colored("Current: ", dim))
-                .append(Message.colored("v" + currentVersion, accent))
-                .append(Message.colored("  ->  New: ", dim))
-                .append(Message.colored("v" + latestVersion, accent))
+                .append(styled("Current version: ", dim))
+                .append(styled("v" + currentVersion, accent))
+                .append(styled("  ->  ", dim))
+                .append(styled("v" + latestVersion, accent))
                 .append("\n")
-                .append(Message.colored("Download: ", dim))
-                .append(Message.colored(RELEASES_URL, accent))
+                .append(styled("Download: ", dim))
+                .append(downloadLink())
                 .append("\n")
-                .append(Message.colored(separator, line));
+                .append(separator());
+        return message;
+    }
+
+    /** A run of strikethrough spaces - the same "&m    &m" trick servers use for a clean
+     *  horizontal divider line, since strikethrough still draws through blank space. */
+    private static MutableComponent separator() {
+        return Component.literal(" ".repeat(90))
+                .withStyle(Style.EMPTY.withStrikethrough(true).withColor(TextColor.fromRgb(0x606060)));
+    }
+
+    private static MutableComponent downloadLink() {
+        Style style = Style.EMPTY.withColor(TextColor.fromRgb(0x7CFFB2)).withUnderlined(true);
+        //? if 1.21.4 {
+        /*style = style.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, RELEASES_URL));
+        *///?} else {
+        style = style.withClickEvent(new ClickEvent.OpenUrl(URI.create(RELEASES_URL)));
+        //?}
+        return Component.literal("Click here to download!").withStyle(style);
     }
 }
