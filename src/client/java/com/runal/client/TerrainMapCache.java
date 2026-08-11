@@ -24,6 +24,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -46,12 +47,19 @@ public final class TerrainMapCache {
     private static final int TILE_CHUNKS = 8;
     private static final int TILE_SIZE = TILE_CHUNKS * 16;
     private static final int SMOOTH_SCALE = 2;
+    private static final float BLUR_MIX = 0.4f;
     private static final int SCAN_RADIUS_CHUNKS = 12;
     private static final int SAMPLE_BUDGET_PER_TICK = 16;
+    private static final int MAX_QUEUE_SIZE = 4000;
     private static final long SAVE_INTERVAL_TICKS = 600L;
 
     private static final Map<Long, Tile> TILES = new HashMap<>();
-    private static final Set<Long> SAMPLED_CHUNKS = new HashSet<>();
+    // A chunk that enters render range gets queued once and stays queued until actually
+    // sampled, even if the player moves on and it falls back out of range - a fixed
+    // per-tick scan window (the old approach) would silently drop anything not reached
+    // before the player outran it, which is exactly what "flies fast, map has gaps" was.
+    private static final Set<Long> QUEUED_OR_SAMPLED = new HashSet<>();
+    private static final ArrayDeque<Long> PENDING_QUEUE = new ArrayDeque<>();
     private static long nextTextureId;
     private static long tickCounter;
     private static String currentServer = "ScepterRPG";
@@ -85,7 +93,8 @@ public final class TerrainMapCache {
             mc.getTextureManager().release(tile.id);
         }
         TILES.clear();
-        SAMPLED_CHUNKS.clear();
+        QUEUED_OR_SAMPLED.clear();
+        PENDING_QUEUE.clear();
     }
 
     private static void onTick(Minecraft mc) {
@@ -95,22 +104,33 @@ public final class TerrainMapCache {
         int centerChunkX = Math.floorDiv((int) Math.floor(mc.player.getX()), 16);
         int centerChunkZ = Math.floorDiv((int) Math.floor(mc.player.getZ()), 16);
 
-        Set<Tile> touchedTiles = new HashSet<>();
-        int sampled = 0;
-        outer:
-        for (int dx = -SCAN_RADIUS_CHUNKS; dx <= SCAN_RADIUS_CHUNKS; dx++) {
-            for (int dz = -SCAN_RADIUS_CHUNKS; dz <= SCAN_RADIUS_CHUNKS; dz++) {
-                int cx = centerChunkX + dx;
-                int cz = centerChunkZ + dz;
-                long key = chunkKey(cx, cz);
-                if (SAMPLED_CHUNKS.contains(key)) continue;
-                if (!mc.level.hasChunk(cx, cz)) continue;
-
-                touchedTiles.add(sampleChunk(mc, cx, cz));
-                SAMPLED_CHUNKS.add(key);
-                sampled++;
-                if (sampled >= SAMPLE_BUDGET_PER_TICK) break outer;
+        // Discover: queue any newly-in-range loaded chunks. Doesn't sample them here, so
+        // this stays cheap even when hundreds of chunks come into range in one tick.
+        if (PENDING_QUEUE.size() < MAX_QUEUE_SIZE) {
+            for (int dx = -SCAN_RADIUS_CHUNKS; dx <= SCAN_RADIUS_CHUNKS; dx++) {
+                for (int dz = -SCAN_RADIUS_CHUNKS; dz <= SCAN_RADIUS_CHUNKS; dz++) {
+                    int cx = centerChunkX + dx;
+                    int cz = centerChunkZ + dz;
+                    long key = chunkKey(cx, cz);
+                    if (QUEUED_OR_SAMPLED.contains(key)) continue;
+                    if (!mc.level.hasChunk(cx, cz)) continue;
+                    QUEUED_OR_SAMPLED.add(key);
+                    PENDING_QUEUE.addLast(key);
+                }
             }
+        }
+
+        // Process: drain the queue at a steady rate regardless of where the player has
+        // since moved to, so nothing gets permanently skipped by outrunning the scan.
+        Set<Tile> touchedTiles = new HashSet<>();
+        int processed = 0;
+        while (processed < SAMPLE_BUDGET_PER_TICK && !PENDING_QUEUE.isEmpty()) {
+            long key = PENDING_QUEUE.pollFirst();
+            int cx = (int) (key >> 32);
+            int cz = (int) (key & 0xFFFFFFFFL);
+            processed++;
+            if (!mc.level.hasChunk(cx, cz)) continue;
+            touchedTiles.add(sampleChunk(mc, cx, cz));
         }
         // Refresh each touched tile's texture once, not once per chunk - many chunks in one
         // tick usually land in the same tile, and the smoothing pass isn't free.
@@ -184,23 +204,41 @@ public final class TerrainMapCache {
             }
         }
 
-        BufferedImage scaled = new BufferedImage(smoothSize, smoothSize, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D graphics = scaled.createGraphics();
-        try {
-            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-            graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-            graphics.drawImage(source, 0, 0, smoothSize, smoothSize, null);
-        } finally {
-            graphics.dispose();
-        }
+        // A full bilinear stretch looked mushy - blend it with a crisp nearest-neighbor
+        // upscale so edges soften without smearing into a blur.
+        BufferedImage sharp = scale(source, smoothSize, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        BufferedImage blurred = scale(source, smoothSize, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 
         NativeImage result = new NativeImage(smoothSize, smoothSize, true);
         for (int x = 0; x < smoothSize; x++) {
             for (int z = 0; z < smoothSize; z++) {
-                result.setPixel(x, z, scaled.getRGB(x, z));
+                result.setPixel(x, z, mixColors(sharp.getRGB(x, z), blurred.getRGB(x, z), BLUR_MIX));
             }
         }
         return result;
+    }
+
+    private static BufferedImage scale(BufferedImage source, int size, Object interpolation) {
+        BufferedImage scaled = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = scaled.createGraphics();
+        try {
+            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, interpolation);
+            graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            graphics.drawImage(source, 0, 0, size, size, null);
+        } finally {
+            graphics.dispose();
+        }
+        return scaled;
+    }
+
+    private static int mixColors(int a, int b, float t) {
+        int ar = (a >> 16) & 0xFF, ag = (a >> 8) & 0xFF, ab = a & 0xFF, aa = (a >>> 24) & 0xFF;
+        int br = (b >> 16) & 0xFF, bg = (b >> 8) & 0xFF, bb = b & 0xFF, ba = (b >>> 24) & 0xFF;
+        int r = clamp255(Math.round(ar + (br - ar) * t));
+        int g = clamp255(Math.round(ag + (bg - ag) * t));
+        int bl = clamp255(Math.round(ab + (bb - ab) * t));
+        int al = clamp255(Math.round(aa + (ba - aa) * t));
+        return (al << 24) | (r << 16) | (g << 8) | bl;
     }
 
     private static int shade(int rgb, int height, int neighborHeight) {
