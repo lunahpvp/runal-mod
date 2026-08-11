@@ -239,6 +239,20 @@ public class UtilityHudRenderer {
             }
         }
 
+        if (WeaponCooldownState.enabled) {
+            for (Map.Entry<String, WeaponCooldownState.ActiveCooldown> entry : WeaponCooldownState.active.entrySet()) {
+                WeaponCooldownState.ActiveCooldown cooldown = entry.getValue();
+                String value;
+                if (seconds) {
+                    value = cooldown.remainingSecondsCeil() + "s";
+                } else {
+                    int percent = Math.round((cooldown.remainingTicks / (float) cooldown.totalTicks) * 100f);
+                    value = percent + "%";
+                }
+                entries.add(new CooldownEntry(entry.getKey(), value, WeaponCooldownState.nameColor, WeaponCooldownState.valueColor));
+            }
+        }
+
         if (AccessoryCooldownState.enabled) {
             for (Map.Entry<String, AccessoryCooldownState.ActiveCooldown> entry : AccessoryCooldownState.active.entrySet()) {
                 AccessoryCooldownState.ActiveCooldown cooldown = entry.getValue();
