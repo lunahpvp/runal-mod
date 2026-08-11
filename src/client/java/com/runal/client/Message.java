@@ -56,6 +56,17 @@ public class Message {
         return Component.literal(text).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(rgb)));
     }
 
+    public static void sendRaw(MutableComponent message) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+
+        //? if 1.21.4 || 1.21.11 {
+        /*mc.player.displayClientMessage(message, false);
+        *///?} else {
+        mc.player.sendSystemMessage(message);
+        //?}
+    }
+
     public static void chat(String statusText, int statusColor) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || !RunalSettings.chatNotifications) return;

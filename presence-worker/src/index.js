@@ -187,11 +187,38 @@ export class PresenceRoom {
   }
 }
 
+async function handleLatestVersion() {
+  try {
+    // cacheTtl caches the upstream GitHub response at Cloudflare's edge - without it,
+    // every player join would hit GitHub's API directly, and unauthenticated GitHub API
+    // calls are capped at 60/hour per source IP (all of which come from Cloudflare here).
+    const response = await fetch("https://api.github.com/repos/lunahpvp/runal-mod/releases/latest", {
+      headers: {
+        "User-Agent": "runal-presence-worker",
+        "Accept": "application/vnd.github+json"
+      },
+      cf: { cacheTtl: 600, cacheEverything: true }
+    });
+    if (!response.ok) return json({ error: "upstream error" }, 502);
+
+    const data = await response.json();
+    const version = String(data.tag_name || "").replace(/^v/, "");
+    if (!version) return json({ error: "no version" }, 502);
+
+    return json({ version });
+  } catch {
+    return json({ error: "fetch failed" }, 502);
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === "/" || url.pathname === "/health") {
       return json({ service: "runal-presence", status: "ok" });
+    }
+    if (url.pathname === "/latest-version") {
+      return handleLatestVersion();
     }
     if (url.pathname !== "/presence") {
       return json({ error: "not found" }, 404);
