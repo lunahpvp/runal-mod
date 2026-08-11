@@ -60,7 +60,9 @@ public class MapScreen extends Screen {
 
     private void renderContent(GuiGraphicsExtractor context, int mouseX, int mouseY) {
         context.fillGradient(0, 0, width, height, 0xEE0B0B0F, 0xEE0B0B0F);
-        context.centeredText(font, "World Map", width / 2, 12, 0xFFFFFFFF);
+        WorldRegions.Region region = currentRegion();
+        String title = region.label != null ? "World Map - " + region.label : "World Map";
+        context.centeredText(font, title, width / 2, 12, 0xFFFFFFFF);
         context.centeredText(font, "Drag to pan  •  Scroll to zoom  •  Click a waypoint to edit it  •  Right-click to recenter", width / 2, 24, 0xFFA7A8B2);
 
         int panelX = PANEL_MARGIN;
@@ -83,7 +85,8 @@ public class MapScreen extends Screen {
         drawPlayerMarker(context, panelX, panelY, panelW, panelH);
 
         if (waypoints.isEmpty()) {
-            context.centeredText(font, "No waypoints in this dimension yet.", panelX + panelW / 2, panelY + panelH / 2 - 5, 0xFF8B8D97);
+            String scope = region.label != null ? "in " + region.label + " yet." : "in this dimension yet.";
+            context.centeredText(font, "No waypoints " + scope, panelX + panelW / 2, panelY + panelH / 2 - 5, 0xFF8B8D97);
             context.centeredText(font, "Press your New Waypoint keybind to add one.", panelX + panelW / 2, panelY + panelH / 2 + 6, 0xFF8B8D97);
         }
 
@@ -171,9 +174,16 @@ public class MapScreen extends Screen {
     private List<Waypoint> visibleWaypoints() {
         if (minecraft == null) return List.of();
         String dimensionKey = WaypointManagerState.currentDimensionKey(minecraft);
+        WorldRegions.Region region = currentRegion();
         return WaypointManagerState.INSTANCE.getWaypoints().stream()
                 .filter(w -> w.enabled && w.isEnabledInDimension(dimensionKey))
+                .filter(w -> region == WorldRegions.Region.UNKNOWN || WorldRegions.regionOf(w.x, w.y, w.z) == region)
                 .toList();
+    }
+
+    private WorldRegions.Region currentRegion() {
+        if (minecraft == null || minecraft.player == null || !WorldRegions.isMageRpg()) return WorldRegions.Region.UNKNOWN;
+        return WorldRegions.regionOf(minecraft.player.getX(), minecraft.player.getY(), minecraft.player.getZ());
     }
 
     private double worldToScreenX(double worldX, int panelX, int panelW) {
