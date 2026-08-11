@@ -463,6 +463,19 @@ public class BuiltinModules {
 
         ModuleManager.register(new Module() {
             private final List<ModuleSetting> settings = List.of(
+                    new ButtonModuleSetting("World Map", "Open", () -> Minecraft.getInstance().setScreen(new MapScreen())),
+                    new KeybindModuleSetting(RunalKeybinds.worldMap())
+            );
+            public String getName() { return "World Map"; }
+            public String getDescription() { return "Overhead view of your waypoints, pan and zoom to browse them."; }
+            public String getCategory() { return "Tracking"; }
+            public boolean isEnabled() { return true; }
+            public void toggle() { Minecraft.getInstance().setScreen(new MapScreen()); }
+            public List<ModuleSetting> getSettings() { return settings; }
+        });
+
+        ModuleManager.register(new Module() {
+            private final List<ModuleSetting> settings = List.of(
                     new ColorModuleSetting("Text Color", () -> BossTitleState.textColor, v -> BossTitleState.textColor = v),
                     new SliderModuleSetting("Scale", 1.0f, 5.0f, 0.25f, () -> BossTitleState.scale, v -> BossTitleState.scale = v)
             );
