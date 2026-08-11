@@ -62,9 +62,9 @@ public class MapScreen extends Screen {
     private void renderContent(GuiGraphicsExtractor context, int mouseX, int mouseY) {
         context.fillGradient(0, 0, width, height, 0xEE0B0B0F, 0xEE0B0B0F);
         WorldRegions.Region region = currentRegion();
-        String title = region.label != null ? "World Map - " + region.label : "World Map";
+        String title = region.label != null ? "World Map: " + region.label : "World Map";
         context.centeredText(font, title, width / 2, 12, 0xFFFFFFFF);
-        context.centeredText(font, "Drag to pan  •  Scroll to zoom  •  Click a waypoint to edit it  •  Right-click to recenter", width / 2, 24, 0xFFA7A8B2);
+        context.centeredText(font, "Drag to pan, scroll to zoom, click a waypoint to edit it, right-click to recenter", width / 2, 24, 0xFFA7A8B2);
 
         int panelX = PANEL_MARGIN;
         int panelY = PANEL_TOP;
@@ -85,12 +85,6 @@ public class MapScreen extends Screen {
         }
 
         drawPlayerMarker(context, panelX, panelY, panelW, panelH);
-
-        if (waypoints.isEmpty()) {
-            String scope = region.label != null ? "in " + region.label + " yet." : "in this dimension yet.";
-            context.centeredText(font, "No waypoints " + scope, panelX + panelW / 2, panelY + panelH / 2 - 5, 0xFF8B8D97);
-            context.centeredText(font, "Press your New Waypoint keybind to add one.", panelX + panelW / 2, panelY + panelH / 2 + 6, 0xFF8B8D97);
-        }
 
         context.disableScissor();
         context.outline(panelX, panelY, panelW, panelH, 0x33FFFFFF);

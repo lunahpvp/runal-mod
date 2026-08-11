@@ -36,8 +36,8 @@ import java.util.Set;
 public final class TerrainMapCache {
     private static final int TILE_CHUNKS = 8;
     private static final int TILE_SIZE = TILE_CHUNKS * 16;
-    private static final int SCAN_RADIUS_CHUNKS = 8;
-    private static final int SAMPLE_BUDGET_PER_TICK = 6;
+    private static final int SCAN_RADIUS_CHUNKS = 12;
+    private static final int SAMPLE_BUDGET_PER_TICK = 16;
     private static final long SAVE_INTERVAL_TICKS = 600L;
 
     private static final Map<Long, Tile> TILES = new HashMap<>();
@@ -161,6 +161,9 @@ public final class TerrainMapCache {
         Supplier<String> label = () -> "Runal terrain tile " + name;
         DynamicTexture texture = new DynamicTexture(label, image);
         //?}
+        //? if 1.21.4 {
+        /*texture.setFilter(true, false);
+        *///?}
         Minecraft.getInstance().getTextureManager().register(id, texture);
         texture.upload();
 
