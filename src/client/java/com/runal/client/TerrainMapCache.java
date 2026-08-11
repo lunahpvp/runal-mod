@@ -27,6 +27,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Live terrain color sampler for the World Map, the same technique JourneyMap/Xaero's
@@ -69,6 +71,7 @@ public final class TerrainMapCache {
 
     private static void onJoin() {
         currentServer = DiscordPresenceController.detectedServer();
+        loadAllCachedTiles();
     }
 
     private static void onDisconnect() {
@@ -168,9 +171,33 @@ public final class TerrainMapCache {
         return (((long) chunkX) << 32) | (chunkZ & 0xFFFFFFFFL);
     }
 
+    /** Loads every tile PNG already sitting in this server's cache dir - self-explored ones
+     *  from earlier sessions, or ones {@link GitHubTileDownloader} just fetched - so they
+     *  show up on the map immediately instead of only as you happen to fly back near them. */
+    public static void loadAllCachedTiles() {
+        Path dir = cacheDir();
+        if (!Files.isDirectory(dir)) return;
+        try (var stream = Files.list(dir)) {
+            stream.forEach(TerrainMapCache::loadCachedFile);
+        } catch (IOException ignored) {
+        }
+    }
+
+    private static final Pattern TILE_FILENAME_PATTERN = Pattern.compile("tile_(-?\\d+)_(-?\\d+)\\.png");
+
+    private static void loadCachedFile(Path path) {
+        Matcher matcher = TILE_FILENAME_PATTERN.matcher(path.getFileName().toString());
+        if (!matcher.matches()) return;
+        tileAt(Integer.parseInt(matcher.group(1)), Integer.parseInt(matcher.group(2)));
+    }
+
     private static Tile tileFor(int chunkX, int chunkZ) {
         int originChunkX = Math.floorDiv(chunkX, TILE_CHUNKS) * TILE_CHUNKS;
         int originChunkZ = Math.floorDiv(chunkZ, TILE_CHUNKS) * TILE_CHUNKS;
+        return tileAt(originChunkX, originChunkZ);
+    }
+
+    private static Tile tileAt(int originChunkX, int originChunkZ) {
         long key = chunkKey(originChunkX, originChunkZ);
 
         Tile existing = TILES.get(key);
@@ -213,8 +240,12 @@ public final class TerrainMapCache {
     }
 
     private static Path cacheDir() {
+        return cacheDir(currentServer);
+    }
+
+    public static Path cacheDir(String server) {
         return FabricLoader.getInstance().getConfigDir()
-                .resolve("runal").resolve("map_cache").resolve(currentServer);
+                .resolve("runal").resolve("map_cache").resolve(server);
     }
 
     private static Path tilePath(int originChunkX, int originChunkZ) {
