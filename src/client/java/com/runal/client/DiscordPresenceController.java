@@ -76,10 +76,6 @@ public class DiscordPresenceController {
         });
     }
 
-    public static String detectedServer() {
-        return detectedServerName;
-    }
-
     private static String currentClientId() {
         return "MageRPG".equals(detectedServerName) ? MAGE_RPG_CLIENT_ID : SCEPTER_CLIENT_ID;
     }

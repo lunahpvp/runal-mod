@@ -41,7 +41,6 @@ final class RunalKeybinds {
     private static KeyMapping teamTracker;
     private static KeyMapping waypointManager;
     private static KeyMapping newWaypoint;
-    private static KeyMapping worldMap;
     private static KeyMapping openMenu;
     private static KeyMapping openMenuAlt;
     private static KeyMapping autoGG;
@@ -80,7 +79,6 @@ final class RunalKeybinds {
         teamTracker = register("teamtracker");
         waypointManager = register("waypointmanager");
         newWaypoint = register("newwaypoint");
-        worldMap = register("worldmap", GLFW.GLFW_KEY_M);
 
         registerSeries(HOTBAR_SWAPS, "hotbarswap");
         registerSeries(COMMAND_BINDS, "commandbind");
@@ -144,10 +142,6 @@ final class RunalKeybinds {
 
     static KeyMapping newWaypoint() {
         return newWaypoint;
-    }
-
-    static KeyMapping worldMap() {
-        return worldMap;
     }
 
     static KeyMapping openMenu() {
@@ -255,7 +249,6 @@ final class RunalKeybinds {
         ));
         drain(waypointManager, () -> client.setScreen(new WaypointManagerScreen()));
         drain(newWaypoint, () -> createWaypoint(client));
-        drain(worldMap, () -> client.setScreen(new MapScreen()));
         drain(scaleUp, RunalKeybinds::increasePlayerScale);
         drain(scaleDown, RunalKeybinds::decreasePlayerScale);
         drain(openMenu, () -> client.setScreen(new RunalScreen()));
