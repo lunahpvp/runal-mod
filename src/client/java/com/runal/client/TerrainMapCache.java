@@ -11,6 +11,10 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.levelgen.Heightmap;
 //? if 1.21.4 {
 //?} else {
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.AddressMode;
+import com.mojang.blaze3d.textures.FilterMode;
+import java.util.OptionalDouble;
 import java.util.function.Supplier;
 //?}
 
@@ -111,6 +115,9 @@ public final class TerrainMapCache {
         int tileOriginZ = tile.originChunkZ * 16;
 
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+        int[] heights = new int[16 * 16];
+        int[] baseColors = new int[16 * 16];
+
         for (int lx = 0; lx < 16; lx++) {
             for (int lz = 0; lz < 16; lz++) {
                 int worldX = chunkX * 16 + lx;
@@ -119,8 +126,23 @@ public final class TerrainMapCache {
                 int sampleY = Math.max(mc.level.getMinY(), height - 1);
                 pos.set(worldX, sampleY, worldZ);
                 var mapColor = mc.level.getBlockState(pos).getMapColor(mc.level, pos);
-                int color = 0xFF000000 | mapColor.col;
 
+                int index = lx * 16 + lz;
+                heights[index] = height;
+                baseColors[index] = mapColor.col;
+            }
+        }
+
+        // Vanilla-style relief shading: darken/lighten each column relative to its western
+        // neighbor's height, the same trick paper maps use to fake depth on a flat color grid.
+        for (int lx = 0; lx < 16; lx++) {
+            for (int lz = 0; lz < 16; lz++) {
+                int index = lx * 16 + lz;
+                int neighborHeight = lx > 0 ? heights[(lx - 1) * 16 + lz] : heights[index];
+                int color = shade(baseColors[index], heights[index], neighborHeight);
+
+                int worldX = chunkX * 16 + lx;
+                int worldZ = chunkZ * 16 + lz;
                 int px = worldX - tileOriginX;
                 int pz = worldZ - tileOriginZ;
                 tile.image.setPixel(px, pz, color);
@@ -128,6 +150,18 @@ public final class TerrainMapCache {
         }
         tile.dirty = true;
         tile.texture.upload();
+    }
+
+    private static int shade(int rgb, int height, int neighborHeight) {
+        double factor = height > neighborHeight ? 1.08 : height < neighborHeight ? 0.86 : 0.97;
+        int r = clamp255((int) (((rgb >> 16) & 0xFF) * factor));
+        int g = clamp255((int) (((rgb >> 8) & 0xFF) * factor));
+        int b = clamp255((int) ((rgb & 0xFF) * factor));
+        return 0xFF000000 | (r << 16) | (g << 8) | b;
+    }
+
+    private static int clamp255(int value) {
+        return Math.max(0, Math.min(255, value));
     }
 
     private static long chunkKey(int chunkX, int chunkZ) {
@@ -157,13 +191,11 @@ public final class TerrainMapCache {
         Identifier id = Identifier.fromNamespaceAndPath("runal", "terrain_map/" + name);
         //? if 1.21.4 {
         /*DynamicTexture texture = new DynamicTexture(image);
+        texture.setFilter(true, false);
         *///?} else {
         Supplier<String> label = () -> "Runal terrain tile " + name;
-        DynamicTexture texture = new DynamicTexture(label, image);
+        DynamicTexture texture = new SmoothDynamicTexture(label, image);
         //?}
-        //? if 1.21.4 {
-        /*texture.setFilter(true, false);
-        *///?}
         Minecraft.getInstance().getTextureManager().register(id, texture);
         texture.upload();
 
@@ -234,4 +266,32 @@ public final class TerrainMapCache {
             this.originChunkZ = originChunkZ;
         }
     }
+
+    //? if 1.21.4 {
+    /*
+    *///?} else {
+    /**
+     * DynamicTexture has no public way to request bilinear filtering on the newer
+     * GPU-abstraction pipeline (no more setFilter(boolean,boolean)) - the filter lives on
+     * a GpuSampler instead, and AbstractTexture only exposes its sampler field as
+     * protected. Subclassing is the only way to reach it without reflection.
+     */
+    private static final class SmoothDynamicTexture extends DynamicTexture {
+        SmoothDynamicTexture(Supplier<String> label, NativeImage image) {
+            super(label, image);
+            try {
+                this.sampler = RenderSystem.getDevice().createSampler(
+                        AddressMode.CLAMP_TO_EDGE,
+                        AddressMode.CLAMP_TO_EDGE,
+                        FilterMode.LINEAR,
+                        FilterMode.LINEAR,
+                        0,
+                        OptionalDouble.empty()
+                );
+            } catch (Throwable ignored) {
+                // Falls back to whatever sampler AbstractTexture set up by default (nearest).
+            }
+        }
+    }
+    //?}
 }

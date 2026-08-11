@@ -34,8 +34,8 @@ import net.minecraft.world.phys.shapes.Shapes;
 public class WaypointRenderer {
 
     private static final double BEAM_HEIGHT = 320.0;
-    private static final double BEAM_HALF_WIDTH = 0.2;
-    private static final float BEAM_LINE_WIDTH = 5.0f;
+    private static final double BEAM_HALF_WIDTH = 0.6;
+    private static final float BEAM_LINE_WIDTH = 12.0f;
     private static final double BEAM_HIDE_DISTANCE = 20.0;
     private static final double CLOSE_RANGE = 3.0;
     private static final double AIM_Y_MIN = -100.0;
