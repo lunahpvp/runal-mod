@@ -80,7 +80,7 @@ final class RunalKeybinds {
         teamTracker = register("teamtracker");
         waypointManager = register("waypointmanager");
         newWaypoint = register("newwaypoint");
-        worldMap = register("worldmap");
+        worldMap = register("worldmap", GLFW.GLFW_KEY_M);
 
         registerSeries(HOTBAR_SWAPS, "hotbarswap");
         registerSeries(COMMAND_BINDS, "commandbind");

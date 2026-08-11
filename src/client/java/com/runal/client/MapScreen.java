@@ -3,7 +3,8 @@ package com.runal.client;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 //? if 1.21.4 {
-//?} else {
+/*import net.minecraft.client.renderer.RenderType;
+*///?} else {
 import net.minecraft.client.input.MouseButtonEvent;
 //?}
 import net.minecraft.network.chat.Component;
@@ -75,6 +76,7 @@ public class MapScreen extends Screen {
         context.enableScissor(panelX, panelY, panelX + panelW, panelY + panelH);
 
         drawGrid(context, panelX, panelY, panelW, panelH);
+        drawTerrainTiles(context, panelX, panelY, panelW, panelH);
 
         List<Waypoint> waypoints = visibleWaypoints();
         Waypoint hovered = findWaypointAt(waypoints, panelX, panelY, panelW, panelH, mouseX, mouseY);
@@ -112,6 +114,52 @@ public class MapScreen extends Screen {
         for (int wz = startZ; wz <= worldMaxZ; wz += GRID_SPACING) {
             int sy = (int) worldToScreenZ(wz, panelY, panelH);
             context.fill(panelX, sy, panelX + panelW, sy + 1, 0x22FFFFFF);
+        }
+    }
+
+    private void drawTerrainTiles(GuiGraphicsExtractor context, int panelX, int panelY, int panelW, int panelH) {
+        WorldRegions.Region region = currentRegion();
+        for (TerrainMapCache.TileInfo tile : TerrainMapCache.allTiles()) {
+            if (region != WorldRegions.Region.UNKNOWN && WorldRegions.regionOf(tile.worldX(), 0, tile.worldZ()) != region) continue;
+            float sx = (float) worldToScreenX(tile.worldX(), panelX, panelW);
+            float sy = (float) worldToScreenZ(tile.worldZ(), panelY, panelH);
+            float drawSize = (float) (tile.size() * zoom);
+            if (sx + drawSize < panelX || sx > panelX + panelW || sy + drawSize < panelY || sy > panelY + panelH) continue;
+
+            //? if 1.21.4 {
+            /*context.pose().pushPose();
+            context.pose().translate(sx, sy, 0f);
+            context.pose().scale((float) zoom, (float) zoom, 1f);
+            context.blit(
+                    RenderType::guiTextured,
+                    tile.id(),
+                    0,
+                    0,
+                    0f,
+                    0f,
+                    tile.size(),
+                    tile.size(),
+                    tile.size(),
+                    tile.size()
+            );
+            context.pose().popPose();
+            *///?} else {
+            context.pose().pushMatrix();
+            context.pose().translate(sx, sy);
+            context.pose().scale((float) zoom, (float) zoom);
+            context.blit(
+                    tile.id(),
+                    0,
+                    0,
+                    tile.size(),
+                    tile.size(),
+                    0f,
+                    1f,
+                    0f,
+                    1f
+            );
+            context.pose().popMatrix();
+            //?}
         }
     }
 

@@ -2,14 +2,13 @@ package com.runal.client;
 
 /**
  * MageRPG has no scoreboard/tab-list/dimension signal for which zone you're in - the only
- * thing that reliably tells the zones apart is player position. Per the mapping the user
- * gave: Plains and Desert occupy the same coordinate space with no way to separate them
- * positionally, so they're reported as one zone. Sky is a separate, huge landmass far into
- * the negative quadrant (sampled around -5000, 160, -5000); Lower vs Upper Sky is a
- * Y-level split within that same area that you can fly/descend through.
- *
- * SKY_SPLIT_Y is an unconfirmed guess - the user wasn't sure of the exact altitude where
- * Lower Sky becomes Upper Sky, just that one exists. Tighten it once the real boundary is known.
+ * thing that reliably tells the zones apart is player position. Per the user's own
+ * coordinates: Plains/Desert starts around (0, 114, 0), Lower Sky starts around
+ * (-5000, 100, -5000), and Upper Sky starts around (-10000, 118, -10000) - three anchor
+ * points strung out along the same diagonal, not a vertical Y-level split as originally
+ * guessed. Plains and Desert share the same coordinate space with no way to separate them
+ * positionally, so they're reported as one zone. Classification is nearest-anchor: whichever
+ * of the three start points a position is closest to (in the X/Z plane) is its region.
  */
 public final class WorldRegions {
 
@@ -26,8 +25,12 @@ public final class WorldRegions {
         }
     }
 
-    private static final double SKY_COORD_THRESHOLD = -2000.0;
-    private static final double SKY_SPLIT_Y = 200.0;
+    private static final double PLAINS_DESERT_X = 0.0;
+    private static final double PLAINS_DESERT_Z = 0.0;
+    private static final double LOWER_SKY_X = -5000.0;
+    private static final double LOWER_SKY_Z = -5000.0;
+    private static final double UPPER_SKY_X = -10000.0;
+    private static final double UPPER_SKY_Z = -10000.0;
 
     private WorldRegions() {
     }
@@ -37,9 +40,18 @@ public final class WorldRegions {
     }
 
     public static Region regionOf(double x, double y, double z) {
-        if (x <= SKY_COORD_THRESHOLD && z <= SKY_COORD_THRESHOLD) {
-            return y >= SKY_SPLIT_Y ? Region.UPPER_SKY : Region.LOWER_SKY;
-        }
+        double distPlainsDesert = distanceSq(x, z, PLAINS_DESERT_X, PLAINS_DESERT_Z);
+        double distLowerSky = distanceSq(x, z, LOWER_SKY_X, LOWER_SKY_Z);
+        double distUpperSky = distanceSq(x, z, UPPER_SKY_X, UPPER_SKY_Z);
+
+        if (distUpperSky <= distLowerSky && distUpperSky <= distPlainsDesert) return Region.UPPER_SKY;
+        if (distLowerSky <= distPlainsDesert) return Region.LOWER_SKY;
         return Region.PLAINS_DESERT;
+    }
+
+    private static double distanceSq(double x, double z, double anchorX, double anchorZ) {
+        double dx = x - anchorX;
+        double dz = z - anchorZ;
+        return dx * dx + dz * dz;
     }
 }

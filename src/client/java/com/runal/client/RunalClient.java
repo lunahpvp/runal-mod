@@ -12,6 +12,7 @@ public final class RunalClient implements ClientModInitializer {
     public void onInitializeClient() {
         RunalKeybinds.register();
         RunalCommands.register();
+        TerrainMapCache.register();
         registerPictureInPictureRenderer();
 
         BuiltinModules.registerAll();
