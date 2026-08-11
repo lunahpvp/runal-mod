@@ -18,6 +18,9 @@ import java.util.OptionalDouble;
 import java.util.function.Supplier;
 //?}
 
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -42,6 +45,7 @@ import java.util.regex.Pattern;
 public final class TerrainMapCache {
     private static final int TILE_CHUNKS = 8;
     private static final int TILE_SIZE = TILE_CHUNKS * 16;
+    private static final int SMOOTH_SCALE = 2;
     private static final int SCAN_RADIUS_CHUNKS = 12;
     private static final int SAMPLE_BUDGET_PER_TICK = 16;
     private static final long SAVE_INTERVAL_TICKS = 600L;
@@ -91,6 +95,7 @@ public final class TerrainMapCache {
         int centerChunkX = Math.floorDiv((int) Math.floor(mc.player.getX()), 16);
         int centerChunkZ = Math.floorDiv((int) Math.floor(mc.player.getZ()), 16);
 
+        Set<Tile> touchedTiles = new HashSet<>();
         int sampled = 0;
         outer:
         for (int dx = -SCAN_RADIUS_CHUNKS; dx <= SCAN_RADIUS_CHUNKS; dx++) {
@@ -101,18 +106,21 @@ public final class TerrainMapCache {
                 if (SAMPLED_CHUNKS.contains(key)) continue;
                 if (!mc.level.hasChunk(cx, cz)) continue;
 
-                sampleChunk(mc, cx, cz);
+                touchedTiles.add(sampleChunk(mc, cx, cz));
                 SAMPLED_CHUNKS.add(key);
                 sampled++;
                 if (sampled >= SAMPLE_BUDGET_PER_TICK) break outer;
             }
         }
+        // Refresh each touched tile's texture once, not once per chunk - many chunks in one
+        // tick usually land in the same tile, and the smoothing pass isn't free.
+        for (Tile tile : touchedTiles) refreshTexture(tile);
 
         tickCounter++;
         if (tickCounter % SAVE_INTERVAL_TICKS == 0) flushDirty();
     }
 
-    private static void sampleChunk(Minecraft mc, int chunkX, int chunkZ) {
+    private static Tile sampleChunk(Minecraft mc, int chunkX, int chunkZ) {
         Tile tile = tileFor(chunkX, chunkZ);
         int tileOriginX = tile.originChunkX * 16;
         int tileOriginZ = tile.originChunkZ * 16;
@@ -152,7 +160,47 @@ public final class TerrainMapCache {
             }
         }
         tile.dirty = true;
+        return tile;
+    }
+
+    /** Rebuilds the tile's GPU texture from its raw block-color image via a supersampled
+     *  upscale, baking the smoothing into the pixel data itself rather than relying on GPU
+     *  sampler state - the GUI blit pipeline appears to force nearest-neighbor regardless of
+     *  a texture's own filter settings, so a real per-texel blur is the only reliable fix. */
+    private static void refreshTexture(Tile tile) {
+        NativeImage smoothed = buildSmoothed(tile.image);
+        tile.texture.setPixels(smoothed);
         tile.texture.upload();
+    }
+
+    private static NativeImage buildSmoothed(NativeImage raw) {
+        int rawSize = raw.getWidth();
+        int smoothSize = rawSize * SMOOTH_SCALE;
+
+        BufferedImage source = new BufferedImage(rawSize, rawSize, BufferedImage.TYPE_INT_ARGB);
+        for (int x = 0; x < rawSize; x++) {
+            for (int z = 0; z < rawSize; z++) {
+                source.setRGB(x, z, raw.getPixel(x, z));
+            }
+        }
+
+        BufferedImage scaled = new BufferedImage(smoothSize, smoothSize, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = scaled.createGraphics();
+        try {
+            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            graphics.drawImage(source, 0, 0, smoothSize, smoothSize, null);
+        } finally {
+            graphics.dispose();
+        }
+
+        NativeImage result = new NativeImage(smoothSize, smoothSize, true);
+        for (int x = 0; x < smoothSize; x++) {
+            for (int z = 0; z < smoothSize; z++) {
+                result.setPixel(x, z, scaled.getRGB(x, z));
+            }
+        }
+        return result;
     }
 
     private static int shade(int rgb, int height, int neighborHeight) {
@@ -216,12 +264,13 @@ public final class TerrainMapCache {
 
         String name = "tile_" + originChunkX + "_" + originChunkZ + "_" + (nextTextureId++);
         Identifier id = Identifier.fromNamespaceAndPath("runal", "terrain_map/" + name);
+        NativeImage initialSmoothed = buildSmoothed(image);
         //? if 1.21.4 {
-        /*DynamicTexture texture = new DynamicTexture(image);
+        /*DynamicTexture texture = new DynamicTexture(initialSmoothed);
         texture.setFilter(true, false);
         *///?} else {
         Supplier<String> label = () -> "Runal terrain tile " + name;
-        DynamicTexture texture = new SmoothDynamicTexture(label, image);
+        DynamicTexture texture = new SmoothDynamicTexture(label, initialSmoothed);
         //?}
         Minecraft.getInstance().getTextureManager().register(id, texture);
         texture.upload();
