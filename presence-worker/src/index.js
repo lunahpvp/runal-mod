@@ -1,6 +1,14 @@
 const AUTH_TIMEOUT_MS = 30_000;
 const MIN_REFRESH_INTERVAL_MS = 10_000;
 const MAX_MESSAGE_LENGTH = 2_048;
+const MIN_CHAT_INTERVAL_MS = 1_500;
+const MAX_CHAT_LENGTH = 256;
+const MAX_MUTE_SECONDS = 7 * 24 * 60 * 60;
+// Lynaah - the only account allowed to mute/unmute Runal Chat. This is enforced here, not
+// client-side, since the client is open source and a client-side-only check would be
+// trivial to bypass; this UUID comes from the same Mojang session-join handshake already
+// used to authenticate presence, so it can't be spoofed.
+const ADMIN_UUID = "395e68bdb06e40fdbcdfbc7c146dcf15";
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -101,6 +109,12 @@ export class PresenceRoom {
           action: "auth_request",
           serverId: pendingServerId
         }));
+      } else if (message.action === "chat") {
+        await this.handleChat(socket, attachment, message);
+      } else if (message.action === "mute") {
+        await this.handleMuteToggle(socket, attachment, message, true);
+      } else if (message.action === "unmute") {
+        await this.handleMuteToggle(socket, attachment, message, false);
       }
       return;
     }
@@ -146,6 +160,62 @@ export class PresenceRoom {
     });
     socket.send(JSON.stringify({ action: "auth_success" }));
     this.broadcastSnapshot();
+  }
+
+  async getMutes() {
+    return (await this.ctx.storage.get("mutedUsers")) || {};
+  }
+
+  async setMutes(mutes) {
+    await this.ctx.storage.put("mutedUsers", mutes);
+  }
+
+  async handleChat(socket, attachment, message) {
+    const now = Date.now();
+    const lastChatAt = Number(attachment.lastChatAt || 0);
+    if (now - lastChatAt < MIN_CHAT_INTERVAL_MS) return;
+
+    const text = String(message.text || "").slice(0, MAX_CHAT_LENGTH).trim();
+    if (!text) return;
+
+    const mutes = await this.getMutes();
+    const expiresAt = mutes[attachment.name.toLowerCase()];
+    if (expiresAt && expiresAt > now) {
+      socket.send(JSON.stringify({ action: "chat_error", reason: "muted" }));
+      return;
+    }
+
+    socket.serializeAttachment({ ...attachment, lastChatAt: now });
+
+    const payload = JSON.stringify({ action: "chat", name: attachment.name, text });
+    for (const peer of this.ctx.getWebSockets()) {
+      const peerAttachment = peer.deserializeAttachment() || {};
+      if (!peerAttachment.authenticated) continue;
+      try {
+        peer.send(payload);
+      } catch {
+        // The close/error callback will refresh the remaining clients.
+      }
+    }
+  }
+
+  async handleMuteToggle(socket, attachment, message, muting) {
+    if (attachment.uuid !== ADMIN_UUID) {
+      socket.send(JSON.stringify({ action: "chat_error", reason: "not_admin" }));
+      return;
+    }
+    if (!isValidName(message.target)) return;
+
+    const target = message.target.toLowerCase();
+    const mutes = await this.getMutes();
+    if (muting) {
+      const seconds = Math.max(1, Math.min(MAX_MUTE_SECONDS, Number(message.seconds) || 600));
+      mutes[target] = Date.now() + seconds * 1000;
+    } else {
+      delete mutes[target];
+    }
+    await this.setMutes(mutes);
+    socket.send(JSON.stringify({ action: "mute_ack", target: message.target, muting }));
   }
 
   webSocketClose() {

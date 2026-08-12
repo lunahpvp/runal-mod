@@ -70,6 +70,40 @@ public final class RunalPresenceClient {
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> disconnect());
     }
 
+    public static boolean sendChat(String text) {
+        WebSocket current = socket;
+        if (current == null) return false;
+
+        JsonObject message = new JsonObject();
+        message.addProperty("action", "chat");
+        message.addProperty("text", text);
+        current.sendText(message.toString(), true);
+        return true;
+    }
+
+    public static boolean sendMute(String target, int seconds) {
+        WebSocket current = socket;
+        if (current == null) return false;
+
+        JsonObject message = new JsonObject();
+        message.addProperty("action", "mute");
+        message.addProperty("target", target);
+        message.addProperty("seconds", seconds);
+        current.sendText(message.toString(), true);
+        return true;
+    }
+
+    public static boolean sendUnmute(String target) {
+        WebSocket current = socket;
+        if (current == null) return false;
+
+        JsonObject message = new JsonObject();
+        message.addProperty("action", "unmute");
+        message.addProperty("target", target);
+        current.sendText(message.toString(), true);
+        return true;
+    }
+
     public static boolean isActiveUser(UUID uuid, String name) {
         Minecraft client = Minecraft.getInstance();
         if (client.player != null) {
@@ -179,10 +213,48 @@ public final class RunalPresenceClient {
             }
             if ("sync".equals(action)) {
                 verifySnapshot(message.getAsJsonArray("users"));
+                return;
+            }
+            if ("chat".equals(action)) {
+                handleChatReceived(message.get("name").getAsString(), message.get("text").getAsString());
+                return;
+            }
+            if ("chat_error".equals(action)) {
+                handleChatError(message.get("reason").getAsString());
+                return;
+            }
+            if ("mute_ack".equals(action)) {
+                handleMuteAck(message.get("target").getAsString(), message.get("muting").getAsBoolean());
             }
         } catch (Exception error) {
             LOGGER.debug("Ignored invalid presence message: {}", error.getMessage());
         }
+    }
+
+    private static void handleChatReceived(String name, String text) {
+        if (RunalSettings.hideRunalChat) return;
+        Minecraft.getInstance().execute(() -> {
+            var line = Message.colored("[RC] ", 0x55FFAA)
+                    .append(Message.colored(name, 0xFFFFFF))
+                    .append(Message.colored(" > ", 0xAAAAAA))
+                    .append(Message.colored(text, 0xFFFFFF));
+            Message.sendRaw(line);
+        });
+    }
+
+    private static void handleChatError(String reason) {
+        Minecraft.getInstance().execute(() -> {
+            if ("muted".equals(reason)) {
+                Message.commandError("You are currently muted from Runal Chat.");
+            } else if ("not_admin".equals(reason)) {
+                Message.commandError("Only the admin can mute/unmute players.");
+            }
+        });
+    }
+
+    private static void handleMuteAck(String target, boolean muting) {
+        Minecraft.getInstance().execute(() ->
+                Message.commandSuccess((muting ? "Muted " : "Unmuted ") + target + " from Runal Chat."));
     }
 
     private static void scheduleClaimRefresh(WebSocket webSocket) {

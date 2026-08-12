@@ -20,7 +20,23 @@ public final class RunalCommands {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             dispatcher.register(createRoot("runal"));
             dispatcher.register(createRoot("ru"));
+            dispatcher.register(createChatRoot("rc"));
+            dispatcher.register(createChatRoot("runalchat"));
         });
+    }
+
+    private static LiteralArgumentBuilder<FabricClientCommandSource> createChatRoot(String name) {
+        return ClientCommands.literal(name)
+                .then(ClientCommands.argument("message", StringArgumentType.greedyString())
+                        .executes(context -> sendRunalChat(StringArgumentType.getString(context, "message"))));
+    }
+
+    private static int sendRunalChat(String text) {
+        if (!RunalPresenceClient.sendChat(text)) {
+            Message.commandError("Runal Chat is unavailable right now.");
+            return 0;
+        }
+        return 1;
     }
 
     private static LiteralArgumentBuilder<FabricClientCommandSource> createRoot(String name) {
@@ -44,6 +60,18 @@ public final class RunalCommands {
                         .executes(context -> showEnabledModules()))
                 .then(ClientCommands.literal("reload")
                         .executes(context -> reloadConfig()))
+                .then(ClientCommands.literal("hiderunalchat")
+                        .executes(context -> toggleHideRunalChat()))
+                .then(ClientCommands.literal("mute")
+                        .then(ClientCommands.argument("player", StringArgumentType.word())
+                                .then(ClientCommands.argument("seconds", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
+                                        .executes(context -> mutePlayer(
+                                                StringArgumentType.getString(context, "player"),
+                                                com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(context, "seconds")
+                                        )))))
+                .then(ClientCommands.literal("unmute")
+                        .then(ClientCommands.argument("player", StringArgumentType.word())
+                                .executes(context -> unmutePlayer(StringArgumentType.getString(context, "player")))))
                 .then(ClientCommands.literal("toggle")
                         .then(moduleArgument().executes(context ->
                                 toggleModule(StringArgumentType.getString(context, "module")))))
@@ -88,6 +116,8 @@ public final class RunalCommands {
         Message.commandInfo("/runal reset <gui|hud|all> - Reset layouts/settings");
         Message.commandInfo("/runal reload - Reload runal.properties");
         Message.commandInfo("/runal version - Show the installed version");
+        Message.commandInfo("/rc, /runalchat <message> - Chat with Runal players on any server");
+        Message.commandInfo("/runal hiderunalchat - Toggle whether you see Runal Chat");
         return 1;
     }
 
@@ -193,6 +223,28 @@ public final class RunalCommands {
     private static int reloadConfig() {
         ModuleConfig.load();
         Message.commandSuccess("Reloaded runal.properties.");
+        return 1;
+    }
+
+    private static int toggleHideRunalChat() {
+        RunalSettings.hideRunalChat = !RunalSettings.hideRunalChat;
+        Message.commandSuccess("Runal Chat is now " + (RunalSettings.hideRunalChat ? "hidden." : "visible."));
+        return 1;
+    }
+
+    private static int mutePlayer(String player, int seconds) {
+        if (!RunalPresenceClient.sendMute(player, seconds)) {
+            Message.commandError("Runal Chat is unavailable right now.");
+            return 0;
+        }
+        return 1;
+    }
+
+    private static int unmutePlayer(String player) {
+        if (!RunalPresenceClient.sendUnmute(player)) {
+            Message.commandError("Runal Chat is unavailable right now.");
+            return 0;
+        }
         return 1;
     }
 
