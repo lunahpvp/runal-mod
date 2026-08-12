@@ -9,6 +9,10 @@ const MAX_MUTE_SECONDS = 7 * 24 * 60 * 60;
 // trivial to bypass; this UUID comes from the same Mojang session-join handshake already
 // used to authenticate presence, so it can't be spoofed.
 const ADMIN_UUID = "395e68bdb06e40fdbcdfbc7c146dcf15";
+// Not secret - Discord's public key, used to verify that interactions really came from
+// Discord (every request is Ed25519-signed). The bot token, which IS secret, is never
+// needed at runtime - only for the one-time slash command registration script.
+const DISCORD_PUBLIC_KEY = "f1bdd7fd546b6f64ccdf6613c75847c434520ff2597def5747a05e76108810b6";
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -45,6 +49,17 @@ export class PresenceRoom {
   }
 
   async fetch(request) {
+    // These two paths are only ever reached via a direct Durable Object stub call from
+    // this same worker's own code (the Discord interaction handler below) - they're not
+    // routed to from the public default export, so they're not reachable from outside.
+    const url = new URL(request.url);
+    if (url.pathname === "/internal/players") {
+      return this.handleInternalPlayerList();
+    }
+    if (url.pathname === "/internal/ban") {
+      return this.handleInternalBan(request);
+    }
+
     if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
       return json({ error: "websocket upgrade required" }, 426);
     }
@@ -147,6 +162,13 @@ export class PresenceRoom {
       return;
     }
 
+    const bans = await this.getBans();
+    if (bans[uuid]) {
+      console.warn(`Closing socket: banned uuid=${uuid}`);
+      socket.close(4403, "banned");
+      return;
+    }
+
     console.log(`${isRefreshResponse ? "Refreshed" : "Accepted"} presence claim for ${name} (${uuid})`);
 
     socket.serializeAttachment({
@@ -168,6 +190,61 @@ export class PresenceRoom {
 
   async setMutes(mutes) {
     await this.ctx.storage.put("mutedUsers", mutes);
+  }
+
+  async getBans() {
+    return (await this.ctx.storage.get("bannedUsers")) || {};
+  }
+
+  async setBans(bans) {
+    await this.ctx.storage.put("bannedUsers", bans);
+  }
+
+  async handleInternalPlayerList() {
+    const seen = new Set();
+    const players = [];
+    for (const socket of this.ctx.getWebSockets()) {
+      const attachment = socket.deserializeAttachment() || {};
+      if (!attachment.authenticated || !attachment.uuid || seen.has(attachment.uuid)) continue;
+      seen.add(attachment.uuid);
+      players.push({ name: attachment.name, uuid: attachment.uuid });
+    }
+    return json({ players });
+  }
+
+  async handleInternalBan(request) {
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: "invalid json" }, 400);
+    }
+
+    const uuid = normalizeUuid(body.uuid);
+    if (!isValidUuid(uuid)) return json({ error: "invalid uuid" }, 400);
+
+    const bans = await this.getBans();
+    if (body.banned) {
+      bans[uuid] = { at: Date.now(), name: body.name || null };
+    } else {
+      delete bans[uuid];
+    }
+    await this.setBans(bans);
+
+    if (body.banned) {
+      for (const socket of this.ctx.getWebSockets()) {
+        const attachment = socket.deserializeAttachment() || {};
+        if (attachment.uuid === uuid) {
+          try {
+            socket.close(4403, "banned");
+          } catch {
+            // Already closing/closed.
+          }
+        }
+      }
+    }
+
+    return json({ ok: true });
   }
 
   async handleChat(socket, attachment, message) {
@@ -259,6 +336,107 @@ export class PresenceRoom {
   }
 }
 
+function hexToBytes(hex) {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+  }
+  return bytes;
+}
+
+async function verifyDiscordSignature(request, rawBody) {
+  const signature = request.headers.get("X-Signature-Ed25519");
+  const timestamp = request.headers.get("X-Signature-Timestamp");
+  if (!signature || !timestamp) return false;
+
+  try {
+    const key = await crypto.subtle.importKey(
+      "raw",
+      hexToBytes(DISCORD_PUBLIC_KEY),
+      { name: "Ed25519" },
+      false,
+      ["verify"]
+    );
+    return await crypto.subtle.verify(
+      "Ed25519",
+      key,
+      hexToBytes(signature),
+      new TextEncoder().encode(timestamp + rawBody)
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function resolveTargetPlayer(target) {
+  const raw = String(target || "").trim();
+  if (isValidUuid(raw)) return { uuid: normalizeUuid(raw), name: null };
+  if (!isValidName(raw)) return null;
+
+  try {
+    const response = await fetch(
+      `https://api.mojang.com/users/profiles/minecraft/${encodeURIComponent(raw)}`
+    );
+    if (!response.ok) return null;
+    const data = await response.json();
+    return { uuid: normalizeUuid(data.id), name: data.name };
+  } catch {
+    return null;
+  }
+}
+
+async function handleDiscordInteraction(request, env) {
+  const rawBody = await request.text();
+  if (!(await verifyDiscordSignature(request, rawBody))) {
+    return new Response("invalid request signature", { status: 401 });
+  }
+
+  const interaction = JSON.parse(rawBody);
+  if (interaction.type === 1) {
+    return json({ type: 1 });
+  }
+  if (interaction.type !== 2) {
+    return json({ error: "unsupported interaction type" }, 400);
+  }
+
+  const room = env.PRESENCE.getByName("global");
+  const commandName = interaction.data?.name;
+
+  if (commandName === "playerlist") {
+    const response = await room.fetch("https://internal/internal/players");
+    const { players } = await response.json();
+    const content = players.length === 0
+      ? "Nobody is currently using Runal."
+      : `**${players.length} player(s) using Runal right now:**\n` + players.map(p => `- ${p.name}`).join("\n");
+    return json({ type: 4, data: { content } });
+  }
+
+  if (commandName === "ban" || commandName === "unban") {
+    const targetOption = interaction.data.options?.find(option => option.name === "player");
+    const resolved = await resolveTargetPlayer(targetOption?.value);
+    if (!resolved) {
+      return json({
+        type: 4,
+        data: { content: "Couldn't find that player - check the username or UUID.", flags: 64 }
+      });
+    }
+
+    const banning = commandName === "ban";
+    await room.fetch("https://internal/internal/ban", {
+      method: "POST",
+      body: JSON.stringify({ uuid: resolved.uuid, name: resolved.name, banned: banning })
+    });
+
+    const label = resolved.name || resolved.uuid;
+    const content = banning
+      ? `Banned **${label}** from Runal's online features (presence, Runal Chat).`
+      : `Unbanned **${label}**.`;
+    return json({ type: 4, data: { content } });
+  }
+
+  return json({ error: "unknown command" }, 400);
+}
+
 async function handleLatestVersion() {
   try {
     // cacheTtl caches the upstream GitHub response at Cloudflare's edge - without it,
@@ -291,6 +469,9 @@ export default {
     }
     if (url.pathname === "/latest-version") {
       return handleLatestVersion();
+    }
+    if (url.pathname === "/discord-interactions") {
+      return handleDiscordInteraction(request, env);
     }
     if (url.pathname !== "/presence") {
       return json({ error: "not found" }, 404);

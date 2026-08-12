@@ -41,6 +41,7 @@ public final class RunalPresenceClient {
             "https://sessionserver.mojang.com/session/minecraft/hasJoined";
     private static final long RECONNECT_DELAY_SECONDS = 5L;
     private static final long CLAIM_REFRESH_SECONDS = 15L;
+    private static final int BANNED_CLOSE_CODE = 4403;
 
     private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
     private static final ScheduledExecutorService SCHEDULER =
@@ -460,7 +461,12 @@ public final class RunalPresenceClient {
                 socket = null;
                 activeUsers = Set.of();
                 activeNames = Set.of();
-                scheduleReconnect(generation);
+                if (statusCode == BANNED_CLOSE_CODE) {
+                    Minecraft.getInstance().execute(() ->
+                            Message.commandError("You have been banned from Runal's online features."));
+                } else {
+                    scheduleReconnect(generation);
+                }
             }
             return WebSocket.Listener.super.onClose(webSocket, statusCode, reason);
         }
