@@ -51,6 +51,17 @@ export class PresenceRoom {
   constructor(ctx, env) {
     this.ctx = ctx;
     this.env = env;
+    this.discordSocket = null;
+    this.discordSeq = null;
+    this.discordSessionId = null;
+    this.discordResumeUrl = null;
+    this.discordHeartbeatIntervalMs = null;
+
+    // Kicks the Discord gateway connection off (or back up) whenever this object wakes,
+    // for any reason - a new player joining, a chat message, or the periodic alarm below.
+    if (env.DISCORD_BOT_TOKEN) {
+      this.ctx.waitUntil(this.ensureDiscordGateway());
+    }
   }
 
   async fetch(request) {
@@ -302,6 +313,138 @@ export class PresenceRoom {
     socket.send(JSON.stringify({ action: "mute_ack", target: message.target, muting }));
   }
 
+  // --- Discord gateway (bot online status + "Helping X Players") ---
+  //
+  // Slash commands work over plain HTTP webhooks, but a bot's online/idle status and
+  // custom activity text are gateway-only features - there's no REST equivalent. This
+  // hand-rolls the minimal gateway client needed just for that: identify, heartbeat,
+  // presence update. No message/event intents are requested since nothing here needs to
+  // read anything from Discord, only announce a status.
+  //
+  // Durable Objects can get evicted from memory when idle, which would silently kill a
+  // plain in-memory WebSocket like this one - the alarm below exists purely to wake this
+  // object back up often enough to notice and reconnect if that happens.
+
+  currentPlayerCount() {
+    const seen = new Set();
+    for (const socket of this.ctx.getWebSockets()) {
+      const attachment = socket.deserializeAttachment() || {};
+      if (attachment.authenticated && attachment.uuid) seen.add(attachment.uuid);
+    }
+    return seen.size;
+  }
+
+  async ensureDiscordGateway() {
+    if (this.discordSocket && this.discordSocket.readyState === 1) return;
+    try {
+      const url = this.discordResumeUrl || "wss://gateway.discord.gg/?v=10&encoding=json";
+      const socket = new WebSocket(url);
+      this.discordSocket = socket;
+      socket.addEventListener("message", event => this.handleDiscordGatewayMessage(event));
+      socket.addEventListener("close", () => {
+        this.discordSocket = null;
+        this.ctx.storage.setAlarm(Date.now() + 5_000);
+      });
+      socket.addEventListener("error", () => {
+        // The close event follows and handles reconnect scheduling.
+      });
+    } catch (err) {
+      console.warn("Discord gateway connect failed:", err.message);
+      await this.ctx.storage.setAlarm(Date.now() + 15_000);
+    }
+  }
+
+  handleDiscordGatewayMessage(event) {
+    let payload;
+    try {
+      payload = JSON.parse(event.data);
+    } catch {
+      return;
+    }
+    if (payload.s != null) this.discordSeq = payload.s;
+
+    if (payload.op === 10) {
+      this.discordHeartbeatIntervalMs = payload.d.heartbeat_interval;
+      this.ctx.storage.setAlarm(Date.now() + this.discordHeartbeatIntervalMs);
+      if (this.discordSessionId) {
+        this.sendDiscordPayload({
+          op: 6,
+          d: {
+            token: this.env.DISCORD_BOT_TOKEN,
+            session_id: this.discordSessionId,
+            seq: this.discordSeq
+          }
+        });
+      } else {
+        this.sendDiscordPayload({
+          op: 2,
+          d: {
+            token: this.env.DISCORD_BOT_TOKEN,
+            intents: 0,
+            properties: { os: "linux", browser: "runal-presence", device: "runal-presence" }
+          }
+        });
+      }
+      return;
+    }
+
+    if (payload.op === 0 && payload.t === "READY") {
+      this.discordSessionId = payload.d.session_id;
+      this.discordResumeUrl = payload.d.resume_gateway_url;
+      this.updateDiscordPresence();
+      return;
+    }
+
+    if (payload.op === 1) {
+      this.sendDiscordPayload({ op: 1, d: this.discordSeq });
+      return;
+    }
+
+    if (payload.op === 7) {
+      this.discordSocket?.close();
+      return;
+    }
+
+    if (payload.op === 9) {
+      this.discordSessionId = null;
+      this.discordResumeUrl = null;
+      this.discordSocket?.close();
+    }
+  }
+
+  sendDiscordPayload(payload) {
+    if (this.discordSocket && this.discordSocket.readyState === 1) {
+      try {
+        this.discordSocket.send(JSON.stringify(payload));
+      } catch {
+        // The close/error listener handles reconnecting.
+      }
+    }
+  }
+
+  updateDiscordPresence() {
+    const count = this.currentPlayerCount();
+    const text = `Helping ${count} ${count === 1 ? "Player" : "Players"}`;
+    this.sendDiscordPayload({
+      op: 3,
+      d: {
+        since: null,
+        status: "online",
+        afk: false,
+        activities: [{ name: text, type: 4, state: text }]
+      }
+    });
+  }
+
+  async alarm() {
+    if (!this.discordSocket || this.discordSocket.readyState !== 1) {
+      await this.ensureDiscordGateway();
+      return;
+    }
+    this.sendDiscordPayload({ op: 1, d: this.discordSeq });
+    this.ctx.storage.setAlarm(Date.now() + (this.discordHeartbeatIntervalMs || 30_000));
+  }
+
   webSocketClose() {
     this.broadcastSnapshot();
   }
@@ -338,6 +481,8 @@ export class PresenceRoom {
         // The close/error callback will refresh the remaining clients.
       }
     }
+
+    this.updateDiscordPresence();
   }
 }
 
