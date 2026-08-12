@@ -205,6 +205,7 @@ public final class RunalPresenceClient {
                 response.addProperty("name", user.getName());
                 response.addProperty("uuid", user.getProfileId().toString());
                 response.addProperty("version", currentVersion());
+                response.addProperty("server", DiscordPresenceController.detectedServer());
                 webSocket.sendText(response.toString(), true);
             } catch (Exception error) {
                 LOGGER.warn("Could not authenticate Runal presence: {}", error.getMessage());

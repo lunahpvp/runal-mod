@@ -204,6 +204,7 @@ export class PresenceRoom {
       uuid,
       name,
       serverId,
+      server: String(message.server || "unknown").slice(0, 64),
       version: String(message.version || "unknown").slice(0, 32),
       connectedAt: attachment.connectedAt,
       lastRefreshAt: Date.now()
@@ -235,7 +236,7 @@ export class PresenceRoom {
       const attachment = socket.deserializeAttachment() || {};
       if (!attachment.authenticated || !attachment.uuid || seen.has(attachment.uuid)) continue;
       seen.add(attachment.uuid);
-      players.push({ name: attachment.name, uuid: attachment.uuid });
+      players.push({ name: attachment.name, uuid: attachment.uuid, server: attachment.server || "unknown" });
     }
     return json({ players });
   }
@@ -597,7 +598,7 @@ async function handleDiscordInteraction(request, env) {
     const content = players.length === 0
       ? "Nobody is currently using Runal."
       : `**${players.length} ${players.length === 1 ? "Player" : "Players"} using Runal right now:**\n`
-        + players.map(p => `- ${p.name}`).join("\n");
+        + players.map(p => `- ${p.name} (${p.server})`).join("\n");
     return json({ type: 4, data: { content } });
   }
 

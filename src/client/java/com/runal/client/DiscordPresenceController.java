@@ -97,7 +97,9 @@ public class DiscordPresenceController {
         for (String address : SCEPTER_RPG_ADDRESSES) {
             if (normalized.contains(address)) return "ScepterRPG";
         }
-        return "ScepterRPG";
+        // Anything else - show the real address instead of silently mislabeling it as
+        // ScepterRPG, which made Runal Chat/presence look Scepter-and-Mage-only elsewhere.
+        return normalized.split(":")[0];
     }
 
     private static void updatePendingText() {
