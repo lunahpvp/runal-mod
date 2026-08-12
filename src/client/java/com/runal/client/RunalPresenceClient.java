@@ -5,6 +5,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
+import net.fabricmc.fabric.api.client.message.v1.ClientSendMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
@@ -68,6 +69,18 @@ public final class RunalPresenceClient {
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> disconnect());
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> disconnect());
+
+        // Lets "# hey guys" typed straight into normal chat go to Runal Chat instead of the
+        // server, without needing the full /rc command.
+        ClientSendMessageEvents.ALLOW_CHAT.register(rawMessage -> {
+            if (!rawMessage.startsWith("#")) return true;
+
+            String text = rawMessage.substring(1).trim();
+            if (!text.isEmpty() && !sendChat(text)) {
+                Message.commandError("Runal Chat is unavailable right now.");
+            }
+            return false;
+        });
     }
 
     public static boolean sendChat(String text) {
