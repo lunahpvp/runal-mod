@@ -249,6 +249,7 @@ public final class RunalPresenceClient {
 
     private static void handleChatReceived(String server, String name, String text) {
         if (!RunalChatState.enabled) return;
+        if (RunalChatIgnoreState.isIgnored(name)) return;
         Minecraft.getInstance().execute(() -> {
             var line = Message.colored("[RC] ", 0x55FFAA)
                     .append(Message.colored("(" + server + ") ", 0x777777))

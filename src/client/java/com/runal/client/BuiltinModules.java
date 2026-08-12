@@ -417,7 +417,7 @@ public class BuiltinModules {
             public String getDescription() { return "Settings for the click GUI itself."; }
             public String getCategory() { return "Misc"; }
             public boolean isEnabled() { return true; }
-            public void toggle() { Minecraft.getInstance().setScreen(new RunalScreen()); }
+            public void toggle() { RunalScreen.open(); }
             public List<ModuleSetting> getSettings() { return settings; }
         });
 

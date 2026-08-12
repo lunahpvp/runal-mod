@@ -56,15 +56,23 @@ export class PresenceRoom {
     this.discordSessionId = null;
     this.discordResumeUrl = null;
     this.discordHeartbeatIntervalMs = null;
+  }
 
-    // Kicks the Discord gateway connection off (or back up) whenever this object wakes,
-    // for any reason - a new player joining, a chat message, or the periodic alarm below.
-    if (env.DISCORD_BOT_TOKEN) {
+  // Kicks the Discord gateway connection off (or back up) whenever this object wakes for
+  // any real event - not just fetch(), which barely ever runs once a player's WebSocket is
+  // already open (every ping/chat/refresh after that goes through webSocketMessage
+  // instead). Call this from every entry point that can run after a hibernation cycle.
+  // (Not done from the constructor: waitUntil isn't valid there, only inside an actual
+  // event's execution context, so a constructor-time call silently never ran.)
+  kickDiscordGateway() {
+    if (this.env.DISCORD_BOT_TOKEN) {
       this.ctx.waitUntil(this.ensureDiscordGateway());
     }
   }
 
   async fetch(request) {
+    this.kickDiscordGateway();
+
     // These two paths are only ever reached via a direct Durable Object stub call from
     // this same worker's own code (the Discord interaction handler below) - they're not
     // routed to from the public default export, so they're not reachable from outside.
@@ -75,7 +83,9 @@ export class PresenceRoom {
     if (url.pathname === "/internal/ban") {
       return this.handleInternalBan(request);
     }
-
+    if (url.pathname === "/internal/ban-status") {
+      return this.handleInternalBanStatus(url.searchParams.get("uuid"));
+    }
     if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
       return json({ error: "websocket upgrade required" }, 426);
     }
@@ -97,6 +107,8 @@ export class PresenceRoom {
   }
 
   async webSocketMessage(socket, rawMessage) {
+    this.kickDiscordGateway();
+
     const text = typeof rawMessage === "string"
       ? rawMessage
       : new TextDecoder().decode(rawMessage);
@@ -241,7 +253,8 @@ export class PresenceRoom {
 
     const bans = await this.getBans();
     if (body.banned) {
-      bans[uuid] = { at: Date.now(), name: body.name || null };
+      const reason = String(body.reason || "No reason given").slice(0, 256);
+      bans[uuid] = { at: Date.now(), name: body.name || null, reason };
     } else {
       delete bans[uuid];
     }
@@ -261,6 +274,13 @@ export class PresenceRoom {
     }
 
     return json({ ok: true });
+  }
+
+  async handleInternalBanStatus(uuid) {
+    const bans = await this.getBans();
+    const ban = bans[normalizeUuid(uuid)];
+    if (!ban) return json({ banned: false });
+    return json({ banned: true, reason: ban.reason || "No reason given" });
   }
 
   async handleChat(socket, attachment, message) {
@@ -336,20 +356,30 @@ export class PresenceRoom {
 
   async ensureDiscordGateway() {
     if (this.discordSocket && this.discordSocket.readyState === 1) return;
+    console.log("Discord gateway: connecting, token present =", !!this.env.DISCORD_BOT_TOKEN);
+    // Belt-and-suspenders: if this object gets evicted mid-connect (before open/close/error
+    // ever fires on the plain outbound socket below, which - unlike the player-facing
+    // sockets - isn't hibernation-aware), nothing would otherwise ever wake this object up
+    // again to retry. A short fallback alarm guarantees a retry regardless of what happens
+    // to the in-flight connection; a successful HELLO handshake reschedules it to the real
+    // heartbeat interval once one exists.
+    await this.ctx.storage.setAlarm(Date.now() + 10_000);
     try {
       const url = this.discordResumeUrl || "wss://gateway.discord.gg/?v=10&encoding=json";
       const socket = new WebSocket(url);
       this.discordSocket = socket;
+      socket.addEventListener("open", () => console.log("Discord gateway: socket opened"));
       socket.addEventListener("message", event => this.handleDiscordGatewayMessage(event));
-      socket.addEventListener("close", () => {
+      socket.addEventListener("close", event => {
+        console.warn("Discord gateway: closed", event.code, event.reason);
         this.discordSocket = null;
         this.ctx.storage.setAlarm(Date.now() + 5_000);
       });
-      socket.addEventListener("error", () => {
-        // The close event follows and handles reconnect scheduling.
+      socket.addEventListener("error", event => {
+        console.warn("Discord gateway: socket error", event.message || event);
       });
     } catch (err) {
-      console.warn("Discord gateway connect failed:", err.message);
+      console.warn("Discord gateway connect failed:", err.message, err.stack);
       await this.ctx.storage.setAlarm(Date.now() + 15_000);
     }
   }
@@ -364,6 +394,7 @@ export class PresenceRoom {
     if (payload.s != null) this.discordSeq = payload.s;
 
     if (payload.op === 10) {
+      console.log("Discord gateway: HELLO received, heartbeat interval =", payload.d.heartbeat_interval);
       this.discordHeartbeatIntervalMs = payload.d.heartbeat_interval;
       this.ctx.storage.setAlarm(Date.now() + this.discordHeartbeatIntervalMs);
       if (this.discordSessionId) {
@@ -389,10 +420,15 @@ export class PresenceRoom {
     }
 
     if (payload.op === 0 && payload.t === "READY") {
+      console.log("Discord gateway: READY, session started");
       this.discordSessionId = payload.d.session_id;
       this.discordResumeUrl = payload.d.resume_gateway_url;
       this.updateDiscordPresence();
       return;
+    }
+
+    if (payload.op === 9) {
+      console.warn("Discord gateway: INVALID_SESSION, resumable =", payload.d);
     }
 
     if (payload.op === 1) {
@@ -549,16 +585,12 @@ async function handleDiscordInteraction(request, env) {
     return json({ error: "unsupported interaction type" }, 400);
   }
 
-  if (interaction.guild_id !== ALLOWED_GUILD_ID) {
-    return json({
-      type: 4,
-      data: { content: "This bot doesn't work outside its home server.", flags: 64 }
-    });
-  }
-
   const room = env.PRESENCE.getByName("global");
   const commandName = interaction.data?.name;
 
+  // playerlist is registered globally and works in any server the bot's been added to -
+  // it's read-only, so there's nothing here worth locking down. ban/unban stay restricted
+  // to the home server below, since those actually change state.
   if (commandName === "playerlist") {
     const response = await room.fetch("https://internal/internal/players");
     const { players } = await response.json();
@@ -570,6 +602,13 @@ async function handleDiscordInteraction(request, env) {
   }
 
   if (commandName === "ban" || commandName === "unban") {
+    if (interaction.guild_id !== ALLOWED_GUILD_ID) {
+      return json({
+        type: 4,
+        data: { content: "This bot doesn't work outside its home server.", flags: 64 }
+      });
+    }
+
     const memberRoles = interaction.member?.roles || [];
     if (!memberRoles.includes(BAN_ROLE_ID)) {
       return json({
@@ -588,14 +627,20 @@ async function handleDiscordInteraction(request, env) {
     }
 
     const banning = commandName === "ban";
+    const reasonOption = interaction.data.options?.find(option => option.name === "reason");
     await room.fetch("https://internal/internal/ban", {
       method: "POST",
-      body: JSON.stringify({ uuid: resolved.uuid, name: resolved.name, banned: banning })
+      body: JSON.stringify({
+        uuid: resolved.uuid,
+        name: resolved.name,
+        banned: banning,
+        reason: reasonOption?.value
+      })
     });
 
     const label = resolved.name || resolved.uuid;
     const content = banning
-      ? `Banned **${label}** from Runal's online features (presence, Runal Chat).`
+      ? `Banned **${label}** from Runal${reasonOption?.value ? ` for: ${reasonOption.value}` : ""}.`
       : `Unbanned **${label}**.`;
     return json({ type: 4, data: { content } });
   }
@@ -638,6 +683,12 @@ export default {
     }
     if (url.pathname === "/discord-interactions") {
       return handleDiscordInteraction(request, env);
+    }
+    if (url.pathname === "/ban-status") {
+      const uuid = url.searchParams.get("uuid");
+      if (!isValidUuid(uuid || "")) return json({ error: "invalid uuid" }, 400);
+      const room = env.PRESENCE.getByName("global");
+      return room.fetch(`https://internal/internal/ban-status?uuid=${normalizeUuid(uuid)}`);
     }
     if (url.pathname !== "/presence") {
       return json({ error: "not found" }, 404);

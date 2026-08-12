@@ -13,6 +13,7 @@ public final class RunalClient implements ClientModInitializer {
         RunalKeybinds.register();
         RunalCommands.register();
         UpdateChecker.register();
+        RunalBanState.register();
         registerPictureInPictureRenderer();
 
         BuiltinModules.registerAll();

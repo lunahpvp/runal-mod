@@ -125,6 +125,20 @@ public class RunalScreen extends Screen {
         super(Component.literal("Runal"));
     }
 
+    /** Every call site that opens the ClickGUI should go through this instead of constructing
+     *  RunalScreen directly, so a ban is enforced no matter which keybind/command/module
+     *  toggle triggered it. */
+    public static void open() {
+        Minecraft mc = Minecraft.getInstance();
+        mc.execute(() -> {
+            if (RunalBanState.isBanned()) {
+                Message.commandError("You are banned from Runal for " + RunalBanState.reason());
+                return;
+            }
+            mc.setScreen(new RunalScreen());
+        });
+    }
+
     public static void resetPanelPositions() {
         SAVED_POSITIONS.clear();
         EXPANDED.clear();

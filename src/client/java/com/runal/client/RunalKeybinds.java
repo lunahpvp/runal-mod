@@ -251,8 +251,8 @@ final class RunalKeybinds {
         drain(newWaypoint, () -> createWaypoint(client));
         drain(scaleUp, RunalKeybinds::increasePlayerScale);
         drain(scaleDown, RunalKeybinds::decreasePlayerScale);
-        drain(openMenu, () -> client.setScreen(new RunalScreen()));
-        drain(openMenuAlt, () -> client.setScreen(new RunalScreen()));
+        drain(openMenu, RunalScreen::open);
+        drain(openMenuAlt, RunalScreen::open);
 
         for (int index = 0; index < HOTBAR_SWAPS.length; index++) {
             int slot = index;

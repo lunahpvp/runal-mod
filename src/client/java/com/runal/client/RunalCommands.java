@@ -41,9 +41,9 @@ public final class RunalCommands {
 
     private static LiteralArgumentBuilder<FabricClientCommandSource> createRoot(String name) {
         return ClientCommands.literal(name)
-                .executes(context -> openScreen(new RunalScreen()))
+                .executes(context -> openRunalScreen())
                 .then(ClientCommands.literal("gui")
-                        .executes(context -> openScreen(new RunalScreen())))
+                        .executes(context -> openRunalScreen()))
                 .then(ClientCommands.literal("edithud")
                         .executes(context -> openScreen(new HudEditorScreen())))
                 .then(ClientCommands.literal("waypoints")
@@ -70,6 +70,12 @@ public final class RunalCommands {
                 .then(ClientCommands.literal("unmute")
                         .then(ClientCommands.argument("player", StringArgumentType.word())
                                 .executes(context -> unmutePlayer(StringArgumentType.getString(context, "player")))))
+                .then(ClientCommands.literal("ignore")
+                        .then(ClientCommands.argument("player", StringArgumentType.word())
+                                .executes(context -> ignorePlayer(StringArgumentType.getString(context, "player")))))
+                .then(ClientCommands.literal("unignore")
+                        .then(ClientCommands.argument("player", StringArgumentType.word())
+                                .executes(context -> unignorePlayer(StringArgumentType.getString(context, "player")))))
                 .then(ClientCommands.literal("toggle")
                         .then(moduleArgument().executes(context ->
                                 toggleModule(StringArgumentType.getString(context, "module")))))
@@ -101,6 +107,11 @@ public final class RunalCommands {
         return 1;
     }
 
+    private static int openRunalScreen() {
+        RunalScreen.open();
+        return 1;
+    }
+
     private static int showHelp() {
         Message.commandInfo("Command Help:");
         Message.commandInfo("/runal, /ru - Open the ClickGUI");
@@ -115,6 +126,8 @@ public final class RunalCommands {
         Message.commandInfo("/runal reload - Reload runal.properties");
         Message.commandInfo("/runal version - Show the installed version");
         Message.commandInfo("/rc, /runalchat <message> - Chat with Runal players on any server");
+        Message.commandInfo("/runal ignore <player> - Hide Runal Chat messages from a player");
+        Message.commandInfo("/runal unignore <player> - Stop hiding a player's Runal Chat messages");
         return 1;
     }
 
@@ -236,6 +249,26 @@ public final class RunalCommands {
             Message.commandError("Runal Chat is unavailable right now.");
             return 0;
         }
+        return 1;
+    }
+
+    private static int ignorePlayer(String player) {
+        if (!RunalChatIgnoreState.ignore(player)) {
+            Message.commandError("Already ignoring " + player + ".");
+            return 0;
+        }
+        ModuleConfig.save();
+        Message.commandSuccess("Ignoring Runal Chat messages from " + player + ".");
+        return 1;
+    }
+
+    private static int unignorePlayer(String player) {
+        if (!RunalChatIgnoreState.unignore(player)) {
+            Message.commandError(player + " is not ignored.");
+            return 0;
+        }
+        ModuleConfig.save();
+        Message.commandSuccess("No longer ignoring " + player + ".");
         return 1;
     }
 

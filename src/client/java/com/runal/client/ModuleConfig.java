@@ -39,6 +39,7 @@ public class ModuleConfig {
             saveSettings(props, moduleKey, module.getSettings());
         }
         saveHudPositions(props);
+        props.setProperty("runalchat.ignored", RunalChatIgnoreState.serialize());
         return props;
     }
 
@@ -146,6 +147,7 @@ public class ModuleConfig {
         }
         migrateTrackingStyleDefaults();
         loadHudPositions(props);
+        RunalChatIgnoreState.deserialize(props.getProperty("runalchat.ignored"));
     }
 
     private static void migrateTrackingStyleDefaults() {
