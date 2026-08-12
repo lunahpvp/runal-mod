@@ -6,6 +6,9 @@
 //   node register-commands.js
 
 const APPLICATION_ID = "1536969365625512056";
+// Guild-scoped, not global - commands registered this way only exist inside this one
+// server. They also propagate instantly, unlike global commands (up to an hour).
+const GUILD_ID = "1523040301906792458";
 
 const commands = [
   {
@@ -17,7 +20,8 @@ const commands = [
     name: "ban",
     description: "Ban a player from Runal's online features (presence, Runal Chat)",
     type: 1,
-    default_member_permissions: "8", // Administrator only, by default
+    // No default_member_permissions here - the worker itself checks for the specific
+    // "ban" role instead, since that's not the same thing as Discord's Administrator bit.
     options: [
       {
         name: "player",
@@ -31,7 +35,8 @@ const commands = [
     name: "unban",
     description: "Unban a player from Runal's online features",
     type: 1,
-    default_member_permissions: "8", // Administrator only, by default
+    // No default_member_permissions here - the worker itself checks for the specific
+    // "ban" role instead, since that's not the same thing as Discord's Administrator bit.
     options: [
       {
         name: "player",
@@ -51,7 +56,7 @@ async function main() {
   }
 
   const response = await fetch(
-    `https://discord.com/api/v10/applications/${APPLICATION_ID}/commands`,
+    `https://discord.com/api/v10/applications/${APPLICATION_ID}/guilds/${GUILD_ID}/commands`,
     {
       method: "PUT",
       headers: {

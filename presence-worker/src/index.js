@@ -13,6 +13,11 @@ const ADMIN_UUID = "395e68bdb06e40fdbcdfbc7c146dcf15";
 // Discord (every request is Ed25519-signed). The bot token, which IS secret, is never
 // needed at runtime - only for the one-time slash command registration script.
 const DISCORD_PUBLIC_KEY = "f1bdd7fd546b6f64ccdf6613c75847c434520ff2597def5747a05e76108810b6";
+// The bot is locked to this one Discord server, and /ban+/unban to this one role, at the
+// interaction-handler level - this holds even if "Public Bot" were ever left on by mistake
+// in the Developer Portal, since Discord still routes every interaction through here first.
+const ALLOWED_GUILD_ID = "1523040301906792458";
+const BAN_ROLE_ID = "1523041064884375832";
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -399,6 +404,13 @@ async function handleDiscordInteraction(request, env) {
     return json({ error: "unsupported interaction type" }, 400);
   }
 
+  if (interaction.guild_id !== ALLOWED_GUILD_ID) {
+    return json({
+      type: 4,
+      data: { content: "This bot doesn't work outside its home server.", flags: 64 }
+    });
+  }
+
   const room = env.PRESENCE.getByName("global");
   const commandName = interaction.data?.name;
 
@@ -407,11 +419,20 @@ async function handleDiscordInteraction(request, env) {
     const { players } = await response.json();
     const content = players.length === 0
       ? "Nobody is currently using Runal."
-      : `**${players.length} player(s) using Runal right now:**\n` + players.map(p => `- ${p.name}`).join("\n");
+      : `**${players.length} ${players.length === 1 ? "Player" : "Players"} using Runal right now:**\n`
+        + players.map(p => `- ${p.name}`).join("\n");
     return json({ type: 4, data: { content } });
   }
 
   if (commandName === "ban" || commandName === "unban") {
+    const memberRoles = interaction.member?.roles || [];
+    if (!memberRoles.includes(BAN_ROLE_ID)) {
+      return json({
+        type: 4,
+        data: { content: "You don't have permission to do that.", flags: 64 }
+      });
+    }
+
     const targetOption = interaction.data.options?.find(option => option.name === "player");
     const resolved = await resolveTargetPlayer(targetOption?.value);
     if (!resolved) {
