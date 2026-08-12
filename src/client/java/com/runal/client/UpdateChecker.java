@@ -157,7 +157,7 @@ public class UpdateChecker {
     /** A run of strikethrough spaces - the same "&m    &m" trick servers use for a clean
      *  horizontal divider line, since strikethrough still draws through blank space. */
     private static MutableComponent separator() {
-        return Component.literal(" ".repeat(90))
+        return Component.literal(" ".repeat(40))
                 .withStyle(Style.EMPTY.withStrikethrough(true).withColor(TextColor.fromRgb(0x606060)));
     }
 
