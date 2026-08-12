@@ -1,5 +1,5 @@
 // One-time (or re-run when commands change) registration of Runal's Discord slash
-// commands. Needs DISCORD_BOT_TOKEN set in the environment - never hardcode it here.
+l
 //
 // Usage (PowerShell):
 //   $env:DISCORD_BOT_TOKEN = "paste-your-token-here"
