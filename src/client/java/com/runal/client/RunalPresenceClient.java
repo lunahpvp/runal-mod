@@ -77,6 +77,7 @@ public final class RunalPresenceClient {
         JsonObject message = new JsonObject();
         message.addProperty("action", "chat");
         message.addProperty("text", text);
+        message.addProperty("server", DiscordPresenceController.detectedServer());
         current.sendText(message.toString(), true);
         return true;
     }
@@ -216,7 +217,8 @@ public final class RunalPresenceClient {
                 return;
             }
             if ("chat".equals(action)) {
-                handleChatReceived(message.get("name").getAsString(), message.get("text").getAsString());
+                String server = message.has("server") ? message.get("server").getAsString() : "unknown";
+                handleChatReceived(server, message.get("name").getAsString(), message.get("text").getAsString());
                 return;
             }
             if ("chat_error".equals(action)) {
@@ -231,10 +233,11 @@ public final class RunalPresenceClient {
         }
     }
 
-    private static void handleChatReceived(String name, String text) {
+    private static void handleChatReceived(String server, String name, String text) {
         if (!RunalChatState.enabled) return;
         Minecraft.getInstance().execute(() -> {
             var line = Message.colored("[RC] ", 0x55FFAA)
+                    .append(Message.colored("(" + server + ") ", 0x777777))
                     .append(Message.colored(name, 0xFFFFFF))
                     .append(Message.colored(" » ", 0xAAAAAA))
                     .append(Message.colored(text, 0xFFFFFF));

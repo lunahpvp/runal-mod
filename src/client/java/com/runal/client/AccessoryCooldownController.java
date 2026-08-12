@@ -39,10 +39,8 @@ public class AccessoryCooldownController {
         ABILITIES.put("Conqueror of Magic", new AbilityInfo("Crown of Elements", 50));
     }
 
-    // Semiramis AI's heal can't be triggered manually and has no ability-name text of its own -
-    // the server just sends a random chat line from it whenever it auto-triggers. Watching for
-    // "Semiramis AI" itself is the only available signal, so this starts the cooldown directly
-    // rather than going through the ABILITIES name-lookup above.
+    // no ability name to key off for Semiramis - it just triggers on its own and drops a
+    // random line, so we key off her name showing up in chat at all
     private static final String SEMIRAMIS_TRIGGER = "Semiramis AI";
     private static final String SEMIRAMIS_ITEM_NAME = "Semiramis AI";
     private static final double SEMIRAMIS_COOLDOWN_SECONDS = 100;

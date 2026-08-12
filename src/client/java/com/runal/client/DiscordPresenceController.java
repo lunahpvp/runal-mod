@@ -76,6 +76,10 @@ public class DiscordPresenceController {
         });
     }
 
+    public static String detectedServer() {
+        return detectedServerName;
+    }
+
     private static String currentClientId() {
         return "MageRPG".equals(detectedServerName) ? MAGE_RPG_CLIENT_ID : SCEPTER_CLIENT_ID;
     }
@@ -132,9 +136,8 @@ public class DiscordPresenceController {
         boolean punchingBlock = mc.player != null && mc.hitResult != null
                 && mc.options.keyAttack.isDown() && mc.hitResult.getType() == HitResult.Type.BLOCK;
 
-        // Require a bit of sustained punching before this counts - a single accidental left-click
-        // on a block shouldn't flip the status, especially since Discord updates are throttled and
-        // a one-tick blip could otherwise get stuck showing "Mining" for up to MIN_UPDATE_INTERVAL_MS.
+        // needs a few ticks of actual punching, not just one click, or a stray swing gets
+        // stuck showing "Mining" until the next throttled update goes out
         if (punchingBlock) {
             miningStreakTicks++;
             if (miningStreakTicks >= MINING_CONFIRM_TICKS) lastConfirmedMiningMs = System.currentTimeMillis();

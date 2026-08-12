@@ -178,6 +178,8 @@ export class PresenceRoom {
     const text = String(message.text || "").slice(0, MAX_CHAT_LENGTH).trim();
     if (!text) return;
 
+    const server = String(message.server || "unknown").slice(0, 32);
+
     const mutes = await this.getMutes();
     const expiresAt = mutes[attachment.name.toLowerCase()];
     if (expiresAt && expiresAt > now) {
@@ -187,7 +189,7 @@ export class PresenceRoom {
 
     socket.serializeAttachment({ ...attachment, lastChatAt: now });
 
-    const payload = JSON.stringify({ action: "chat", name: attachment.name, text });
+    const payload = JSON.stringify({ action: "chat", name: attachment.name, server, text });
     for (const peer of this.ctx.getWebSockets()) {
       const peerAttachment = peer.deserializeAttachment() || {};
       if (!peerAttachment.authenticated) continue;
