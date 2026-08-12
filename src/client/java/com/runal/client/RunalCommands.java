@@ -60,8 +60,6 @@ public final class RunalCommands {
                         .executes(context -> showEnabledModules()))
                 .then(ClientCommands.literal("reload")
                         .executes(context -> reloadConfig()))
-                .then(ClientCommands.literal("hiderunalchat")
-                        .executes(context -> toggleHideRunalChat()))
                 .then(ClientCommands.literal("mute")
                         .then(ClientCommands.argument("player", StringArgumentType.word())
                                 .then(ClientCommands.argument("seconds", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
@@ -117,7 +115,6 @@ public final class RunalCommands {
         Message.commandInfo("/runal reload - Reload runal.properties");
         Message.commandInfo("/runal version - Show the installed version");
         Message.commandInfo("/rc, /runalchat <message> - Chat with Runal players on any server");
-        Message.commandInfo("/runal hiderunalchat - Toggle whether you see Runal Chat");
         return 1;
     }
 
@@ -223,12 +220,6 @@ public final class RunalCommands {
     private static int reloadConfig() {
         ModuleConfig.load();
         Message.commandSuccess("Reloaded runal.properties.");
-        return 1;
-    }
-
-    private static int toggleHideRunalChat() {
-        RunalSettings.hideRunalChat = !RunalSettings.hideRunalChat;
-        Message.commandSuccess("Runal Chat is now " + (RunalSettings.hideRunalChat ? "hidden." : "visible."));
         return 1;
     }
 

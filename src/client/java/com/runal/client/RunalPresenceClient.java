@@ -232,11 +232,11 @@ public final class RunalPresenceClient {
     }
 
     private static void handleChatReceived(String name, String text) {
-        if (RunalSettings.hideRunalChat) return;
+        if (!RunalChatState.enabled) return;
         Minecraft.getInstance().execute(() -> {
             var line = Message.colored("[RC] ", 0x55FFAA)
                     .append(Message.colored(name, 0xFFFFFF))
-                    .append(Message.colored(" > ", 0xAAAAAA))
+                    .append(Message.colored(" » ", 0xAAAAAA))
                     .append(Message.colored(text, 0xFFFFFF));
             Message.sendRaw(line);
         });
