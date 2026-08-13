@@ -60,6 +60,24 @@ final class RunalKeybinds {
     private static KeyMapping scepterSuicide;
     private static long suicideConfirmUntil;
 
+    private static KeyMapping hideScoreboard;
+    private static KeyMapping fishAlert;
+    private static KeyMapping sessionManager;
+    private static KeyMapping performanceHud;
+    private static KeyMapping eventTracker;
+    private static KeyMapping weaponCooldown;
+    private static KeyMapping armorCooldown;
+    private static KeyMapping accessoryCooldown;
+    private static KeyMapping dungeonTracker;
+    private static KeyMapping killCounter;
+    private static KeyMapping armorHud;
+    private static KeyMapping bossBarScale;
+    private static KeyMapping viewModel;
+    private static KeyMapping inventoryHud;
+    private static KeyMapping discordRpc;
+    private static KeyMapping runalChat;
+    private static KeyMapping bossCallout;
+
     private RunalKeybinds() {
     }
 
@@ -97,6 +115,25 @@ final class RunalKeybinds {
         scepterSuicide = register("scepter_suicide");
         autoGG = register("autogg");
         autoTrash = register("autotrash");
+
+        hideScoreboard = register("hidescoreboard");
+        fishAlert = register("fishalert");
+        sessionManager = register("sessionmanager");
+        performanceHud = register("performancehud");
+        eventTracker = register("eventtracker");
+        weaponCooldown = register("weaponcooldown");
+        armorCooldown = register("armorcooldown");
+        accessoryCooldown = register("accessorycooldown");
+        dungeonTracker = register("dungeontracker");
+        killCounter = register("killcounter");
+        armorHud = register("armorhud");
+        bossBarScale = register("bossbarscale");
+        viewModel = register("viewmodel");
+        inventoryHud = register("inventoryhud");
+        discordRpc = register("discordrpc");
+        runalChat = register("runalchatkeybind");
+        bossCallout = register("bosscallout");
+
         ClientTickEvents.END_CLIENT_TICK.register(RunalKeybinds::onEndTick);
     }
 
@@ -177,6 +214,24 @@ final class RunalKeybinds {
     static KeyMapping scepterSigilShop() { return scepterSigilShop; }
     static KeyMapping scepterClaimLuck() { return scepterClaimLuck; }
     static KeyMapping scepterSuicide() { return scepterSuicide; }
+
+    static KeyMapping hideScoreboard() { return hideScoreboard; }
+    static KeyMapping fishAlert() { return fishAlert; }
+    static KeyMapping sessionManager() { return sessionManager; }
+    static KeyMapping performanceHud() { return performanceHud; }
+    static KeyMapping eventTracker() { return eventTracker; }
+    static KeyMapping weaponCooldown() { return weaponCooldown; }
+    static KeyMapping armorCooldown() { return armorCooldown; }
+    static KeyMapping accessoryCooldown() { return accessoryCooldown; }
+    static KeyMapping dungeonTracker() { return dungeonTracker; }
+    static KeyMapping killCounter() { return killCounter; }
+    static KeyMapping armorHud() { return armorHud; }
+    static KeyMapping bossBarScale() { return bossBarScale; }
+    static KeyMapping viewModel() { return viewModel; }
+    static KeyMapping inventoryHud() { return inventoryHud; }
+    static KeyMapping discordRpc() { return discordRpc; }
+    static KeyMapping runalChat() { return runalChat; }
+    static KeyMapping bossCallout() { return bossCallout; }
 
     private static KeyMapping register(String name) {
         return register(name, GLFW.GLFW_KEY_UNKNOWN);
@@ -293,6 +348,109 @@ final class RunalKeybinds {
                 "Auto Trash",
                 AutoTrashState.INSTANCE::toggle,
                 AutoTrashState.INSTANCE::isEnabled
+        ));
+
+        drain(hideScoreboard, () -> toggle(
+                client,
+                "Hide Scoreboard",
+                HideScoreboardState.INSTANCE::toggle,
+                HideScoreboardState.INSTANCE::isEnabled
+        ));
+        drain(fishAlert, () -> toggle(
+                client,
+                "Fish Alert",
+                FishAlertState.INSTANCE::toggle,
+                FishAlertState.INSTANCE::isEnabled
+        ));
+        drain(sessionManager, () -> toggle(
+                client,
+                "Session Manager",
+                () -> SessionManagerState.enabled = !SessionManagerState.enabled,
+                () -> SessionManagerState.enabled
+        ));
+        drain(performanceHud, () -> toggle(
+                client,
+                "Performance HUD",
+                () -> PerformanceHudState.enabled = !PerformanceHudState.enabled,
+                () -> PerformanceHudState.enabled
+        ));
+        drain(eventTracker, () -> toggle(
+                client,
+                "Event Tracker",
+                () -> EventTrackerState.enabled = !EventTrackerState.enabled,
+                () -> EventTrackerState.enabled
+        ));
+        drain(weaponCooldown, () -> toggle(
+                client,
+                "Weapon Cooldown",
+                () -> ItemCooldownHudState.enabled = !ItemCooldownHudState.enabled,
+                () -> ItemCooldownHudState.enabled
+        ));
+        drain(armorCooldown, () -> toggle(
+                client,
+                "Armor Cooldown",
+                () -> ArmorCooldownHudState.enabled = !ArmorCooldownHudState.enabled,
+                () -> ArmorCooldownHudState.enabled
+        ));
+        drain(accessoryCooldown, () -> toggle(
+                client,
+                "Accessory Cooldown",
+                () -> AccessoryCooldownState.enabled = !AccessoryCooldownState.enabled,
+                () -> AccessoryCooldownState.enabled
+        ));
+        drain(dungeonTracker, () -> toggle(
+                client,
+                "Dungeon Tracker",
+                () -> DungeonTrackerState.enabled = !DungeonTrackerState.enabled,
+                () -> DungeonTrackerState.enabled
+        ));
+        drain(killCounter, () -> toggle(
+                client,
+                "Kill Counter",
+                () -> BossDefeatState.enabled = !BossDefeatState.enabled,
+                () -> BossDefeatState.enabled
+        ));
+        drain(armorHud, () -> toggle(
+                client,
+                "Armor HUD",
+                () -> ArmorHudState.enabled = !ArmorHudState.enabled,
+                () -> ArmorHudState.enabled
+        ));
+        drain(bossBarScale, () -> toggle(
+                client,
+                "Boss Bar Scale",
+                BossBarScaleState.INSTANCE::toggle,
+                BossBarScaleState.INSTANCE::isEnabled
+        ));
+        drain(viewModel, () -> toggle(
+                client,
+                "View Model",
+                ViewModelState.INSTANCE::toggle,
+                ViewModelState.INSTANCE::isEnabled
+        ));
+        drain(inventoryHud, () -> toggle(
+                client,
+                "Inventory HUD",
+                () -> InventoryHudState.enabled = !InventoryHudState.enabled,
+                () -> InventoryHudState.enabled
+        ));
+        drain(discordRpc, () -> toggle(
+                client,
+                "DiscordRPC",
+                () -> DiscordPresenceState.enabled = !DiscordPresenceState.enabled,
+                () -> DiscordPresenceState.enabled
+        ));
+        drain(runalChat, () -> toggle(
+                client,
+                "Runal Chat",
+                () -> RunalChatState.enabled = !RunalChatState.enabled,
+                () -> RunalChatState.enabled
+        ));
+        drain(bossCallout, () -> toggle(
+                client,
+                "Boss Callout",
+                () -> BossTitleState.enabled = !BossTitleState.enabled,
+                () -> BossTitleState.enabled
         ));
     }
 

@@ -72,11 +72,13 @@ public class BuiltinModules {
         });
 
         ModuleManager.register(new Module() {
+            private final List<ModuleSetting> settings = List.of(new KeybindModuleSetting(RunalKeybinds.hideScoreboard()));
             public String getName() { return "Hide Scoreboard"; }
             public String getDescription() { return "Hides the sidebar scoreboard."; }
             public String getCategory() { return "Visual"; }
             public boolean isEnabled() { return HideScoreboardState.INSTANCE.isEnabled(); }
             public void toggle() { HideScoreboardState.INSTANCE.toggle(); }
+            public List<ModuleSetting> getSettings() { return settings; }
         });
 
         ModuleManager.register(new Module() {
@@ -149,7 +151,10 @@ public class BuiltinModules {
                     new SliderModuleSetting("Volume", 0.1f, 2.0f, 0.1f, () -> FishAlertState.INSTANCE.soundVolume, v -> FishAlertState.INSTANCE.soundVolume = v),
                     new SliderModuleSetting("Duration", 0.5f, 5.0f, 0.1f, () -> FishAlertState.INSTANCE.durationSeconds, v -> FishAlertState.INSTANCE.durationSeconds = v),
                     new ToggleModuleSetting("Particles", () -> FishAlertState.INSTANCE.particlesEnabled, v -> FishAlertState.INSTANCE.particlesEnabled = v),
-                    new EnumModuleSetting("Particle Type", FishAlertState.PARTICLE_TYPES, () -> FishAlertState.INSTANCE.particleType, v -> FishAlertState.INSTANCE.particleType = v)
+                    new EnumModuleSetting("Particle Type", FishAlertState.PARTICLE_TYPES, () -> FishAlertState.INSTANCE.particleType, v -> FishAlertState.INSTANCE.particleType = v),
+                    new ToggleModuleSetting("Title", () -> FishAlertState.INSTANCE.titleEnabled, v -> FishAlertState.INSTANCE.titleEnabled = v),
+                    new TextModuleSetting("Title Message", () -> FishAlertState.INSTANCE.titleText, v -> FishAlertState.INSTANCE.titleText = v),
+                    new KeybindModuleSetting(RunalKeybinds.fishAlert())
             );
             public String getName() { return "Fish Alert"; }
             public String getDescription() { return "Plays a sound and particles when a fish bites."; }
@@ -241,7 +246,8 @@ public class BuiltinModules {
                     new ColorModuleSetting("Widget Color", () -> SessionManagerState.widgetColor, v -> SessionManagerState.widgetColor = v),
                     new ColorModuleSetting("Label Color", () -> SessionManagerState.labelColor, v -> SessionManagerState.labelColor = v),
                     new ColorModuleSetting("Value Color", () -> SessionManagerState.valueColor, v -> SessionManagerState.valueColor = v),
-                    new EnumModuleSetting("Time Format", List.of("Short", "Long"), () -> SessionManagerState.timeFormat, v -> SessionManagerState.timeFormat = v)
+                    new EnumModuleSetting("Time Format", List.of("Short", "Long"), () -> SessionManagerState.timeFormat, v -> SessionManagerState.timeFormat = v),
+                    new KeybindModuleSetting(RunalKeybinds.sessionManager())
             );
             public String getName() { return "Session Manager"; }
             public String getDescription() { return "Tracks and displays your play session stats."; }
@@ -258,7 +264,8 @@ public class BuiltinModules {
                     new ToggleModuleSetting("Ping", () -> PerformanceHudState.ping, v -> PerformanceHudState.ping = v),
                     new ToggleModuleSetting("Direction", () -> PerformanceHudState.direction, v -> PerformanceHudState.direction = v),
                     new ColorModuleSetting("Name Color", () -> PerformanceHudState.nameColor, v -> PerformanceHudState.nameColor = v),
-                    new ColorModuleSetting("Value Color", () -> PerformanceHudState.valueColor, v -> PerformanceHudState.valueColor = v)
+                    new ColorModuleSetting("Value Color", () -> PerformanceHudState.valueColor, v -> PerformanceHudState.valueColor = v),
+                    new KeybindModuleSetting(RunalKeybinds.performanceHud())
             );
             public String getName() { return "Performance HUD"; }
             public String getDescription() { return "Displays FPS, TPS, ping, and facing direction."; }
@@ -271,7 +278,8 @@ public class BuiltinModules {
         ModuleManager.register(new Module() {
             private final List<ModuleSetting> settings = List.of(
                     new ColorModuleSetting("Name Color", () -> EventTrackerState.nameColor, v -> EventTrackerState.nameColor = v),
-                    new ColorModuleSetting("Value Color", () -> EventTrackerState.valueColor, v -> EventTrackerState.valueColor = v)
+                    new ColorModuleSetting("Value Color", () -> EventTrackerState.valueColor, v -> EventTrackerState.valueColor = v),
+                    new KeybindModuleSetting(RunalKeybinds.eventTracker())
             );
             public String getName() { return "Event Tracker"; }
             public String getDescription() { return "Tracks in-game events and displays their status."; }
@@ -284,7 +292,8 @@ public class BuiltinModules {
         ModuleManager.register(new Module() {
             private final List<ModuleSetting> settings = List.of(
                     new ColorModuleSetting("Name Color", () -> ItemCooldownHudState.nameColor, v -> ItemCooldownHudState.nameColor = v),
-                    new ColorModuleSetting("Value Color", () -> ItemCooldownHudState.valueColor, v -> ItemCooldownHudState.valueColor = v)
+                    new ColorModuleSetting("Value Color", () -> ItemCooldownHudState.valueColor, v -> ItemCooldownHudState.valueColor = v),
+                    new KeybindModuleSetting(RunalKeybinds.weaponCooldown())
             );
             public String getName() { return "Weapon Cooldown"; }
             public String getConfigKey() { return "weapons_cooldown"; }
@@ -298,7 +307,8 @@ public class BuiltinModules {
         ModuleManager.register(new Module() {
             private final List<ModuleSetting> settings = List.of(
                     new ColorModuleSetting("Name Color", () -> ArmorCooldownHudState.nameColor, v -> ArmorCooldownHudState.nameColor = v),
-                    new ColorModuleSetting("Value Color", () -> ArmorCooldownHudState.valueColor, v -> ArmorCooldownHudState.valueColor = v)
+                    new ColorModuleSetting("Value Color", () -> ArmorCooldownHudState.valueColor, v -> ArmorCooldownHudState.valueColor = v),
+                    new KeybindModuleSetting(RunalKeybinds.armorCooldown())
             );
             public String getName() { return "Armor Cooldown"; }
             public String getDescription() { return "Displays armor ability cooldowns on screen."; }
@@ -311,7 +321,8 @@ public class BuiltinModules {
         ModuleManager.register(new Module() {
             private final List<ModuleSetting> settings = List.of(
                     new ColorModuleSetting("Name Color", () -> AccessoryCooldownState.nameColor, v -> AccessoryCooldownState.nameColor = v),
-                    new ColorModuleSetting("Value Color", () -> AccessoryCooldownState.valueColor, v -> AccessoryCooldownState.valueColor = v)
+                    new ColorModuleSetting("Value Color", () -> AccessoryCooldownState.valueColor, v -> AccessoryCooldownState.valueColor = v),
+                    new KeybindModuleSetting(RunalKeybinds.accessoryCooldown())
             );
             public String getName() { return "Accessory Cooldown"; }
             public String getConfigKey() { return "accessory_cooldown"; }
@@ -325,7 +336,8 @@ public class BuiltinModules {
         ModuleManager.register(new Module() {
             private final List<ModuleSetting> settings = List.of(
                     new ColorModuleSetting("Name Color", () -> DungeonTrackerState.nameColor, v -> DungeonTrackerState.nameColor = v),
-                    new ColorModuleSetting("Value Color", () -> DungeonTrackerState.valueColor, v -> DungeonTrackerState.valueColor = v)
+                    new ColorModuleSetting("Value Color", () -> DungeonTrackerState.valueColor, v -> DungeonTrackerState.valueColor = v),
+                    new KeybindModuleSetting(RunalKeybinds.dungeonTracker())
             );
             public String getName() { return "Dungeon Tracker"; }
             public String getDescription() { return "Tracks dungeon progress and displays it on screen."; }
@@ -338,7 +350,8 @@ public class BuiltinModules {
         ModuleManager.register(new Module() {
             private final List<ModuleSetting> settings = List.of(
                     new ColorModuleSetting("Name Color", () -> BossDefeatState.nameColor, v -> BossDefeatState.nameColor = v),
-                    new ColorModuleSetting("Value Color", () -> BossDefeatState.valueColor, v -> BossDefeatState.valueColor = v)
+                    new ColorModuleSetting("Value Color", () -> BossDefeatState.valueColor, v -> BossDefeatState.valueColor = v),
+                    new KeybindModuleSetting(RunalKeybinds.killCounter())
             );
             public String getName() { return "Kill Counter"; }
             public String getConfigKey() { return "boss_defeat_counter"; }
@@ -353,7 +366,8 @@ public class BuiltinModules {
             private final List<ModuleSetting> settings = List.of(
                     new ToggleModuleSetting("Show HUD", () -> ArmorHudState.showHud, v -> ArmorHudState.showHud = v),
                     new EnumModuleSetting("Orientation", List.of("Horizontal", "Vertical"), () -> ArmorHudState.orientation, v -> ArmorHudState.orientation = v),
-                    new ColorModuleSetting("Widget Color", () -> ArmorHudState.widgetColor, v -> ArmorHudState.widgetColor = v)
+                    new ColorModuleSetting("Widget Color", () -> ArmorHudState.widgetColor, v -> ArmorHudState.widgetColor = v),
+                    new KeybindModuleSetting(RunalKeybinds.armorHud())
             );
             public String getName() { return "Armor HUD"; }
             public String getDescription() { return "Displays your equipped armor pieces on screen."; }
@@ -365,7 +379,8 @@ public class BuiltinModules {
 
         ModuleManager.register(new Module() {
             private final List<ModuleSetting> settings = List.of(
-                    new SliderModuleSetting("Scale", 0.25f, 1.0f, 0.05f, () -> BossBarScaleState.INSTANCE.scale, v -> BossBarScaleState.INSTANCE.scale = v)
+                    new SliderModuleSetting("Scale", 0.25f, 1.0f, 0.05f, () -> BossBarScaleState.INSTANCE.scale, v -> BossBarScaleState.INSTANCE.scale = v),
+                    new KeybindModuleSetting(RunalKeybinds.bossBarScale())
             );
             public String getName() { return "Boss Bar Scale"; }
             public String getDescription() { return "Changes the size of boss bars without hiding their information."; }
@@ -402,7 +417,8 @@ public class BuiltinModules {
                             new SliderModuleSetting("Swing X", 0f, 2f, 0.01f, () -> state.swingX, v -> state.swingX = v),
                             new SliderModuleSetting("Swing Y", 0f, 2f, 0.01f, () -> state.swingY, v -> state.swingY = v),
                             new SliderModuleSetting("Swing Z", 0f, 2f, 0.01f, () -> state.swingZ, v -> state.swingZ = v)
-                    ))
+                    )),
+                    new KeybindModuleSetting(RunalKeybinds.viewModel())
             );
             public String getName() { return "View Model"; }
             public String getDescription() { return "Customize the position, scale, rotation and animations of your held items."; }
@@ -413,11 +429,13 @@ public class BuiltinModules {
         });
 
         ModuleManager.register(new Module() {
+            private final List<ModuleSetting> settings = List.of(new KeybindModuleSetting(RunalKeybinds.inventoryHud()));
             public String getName() { return "Inventory HUD"; }
             public String getDescription() { return "Shows the three main inventory rows without opening your inventory."; }
             public String getCategory() { return "Visual"; }
             public boolean isEnabled() { return InventoryHudState.enabled; }
             public void toggle() { InventoryHudState.enabled = !InventoryHudState.enabled; }
+            public List<ModuleSetting> getSettings() { return settings; }
         });
 
         ModuleManager.register(new Module() {
@@ -438,7 +456,7 @@ public class BuiltinModules {
         });
 
         ModuleManager.register(new Module() {
-            private final List<ModuleSetting> settings = List.of();
+            private final List<ModuleSetting> settings = List.of(new KeybindModuleSetting(RunalKeybinds.discordRpc()));
             public String getName() { return "DiscordRPC"; }
             public String getDescription() { return "Shows your current activity on Discord."; }
             public String getCategory() { return "Misc"; }
@@ -448,7 +466,10 @@ public class BuiltinModules {
         });
 
         ModuleManager.register(new Module() {
-            private final List<ModuleSetting> settings = List.of();
+            private final List<ModuleSetting> settings = List.of(
+                    new EnumModuleSetting("Chat Color", List.copyOf(RunalChatState.CHAT_COLORS.keySet()), () -> RunalChatState.chatColor, v -> RunalChatState.chatColor = v),
+                    new KeybindModuleSetting(RunalKeybinds.runalChat())
+            );
             public String getName() { return "Runal Chat"; }
             public String getDescription() { return "See chat messages from Runal players on any server."; }
             public String getCategory() { return "Misc"; }
@@ -490,7 +511,8 @@ public class BuiltinModules {
         ModuleManager.register(new Module() {
             private final List<ModuleSetting> settings = List.of(
                     new ColorModuleSetting("Text Color", () -> BossTitleState.textColor, v -> BossTitleState.textColor = v),
-                    new SliderModuleSetting("Scale", 1.0f, 5.0f, 0.25f, () -> BossTitleState.scale, v -> BossTitleState.scale = v)
+                    new SliderModuleSetting("Scale", 1.0f, 5.0f, 0.25f, () -> BossTitleState.scale, v -> BossTitleState.scale = v),
+                    new KeybindModuleSetting(RunalKeybinds.bossCallout())
             );
             public String getName() { return "Boss Callout"; }
             public String getDescription() { return "Displays a title on screen when a boss uses an attack."; }

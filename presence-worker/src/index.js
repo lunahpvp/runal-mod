@@ -47,6 +47,11 @@ function isValidUuid(value) {
   return /^[0-9a-f]{32}$/.test(normalizeUuid(value));
 }
 
+const CHAT_COLORS = new Set(["1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "e", "f"]);
+function isValidChatColor(value) {
+  return typeof value === "string" && CHAT_COLORS.has(value);
+}
+
 export class PresenceRoom {
   constructor(ctx, env) {
     this.ctx = ctx;
@@ -205,6 +210,7 @@ export class PresenceRoom {
       name,
       serverId,
       server: String(message.server || "unknown").slice(0, 64),
+      color: isValidChatColor(message.color) ? message.color : "f",
       version: String(message.version || "unknown").slice(0, 32),
       connectedAt: attachment.connectedAt,
       lastRefreshAt: Date.now()
@@ -303,7 +309,7 @@ export class PresenceRoom {
 
     socket.serializeAttachment({ ...attachment, lastChatAt: now });
 
-    const payload = JSON.stringify({ action: "chat", name: attachment.name, server, text });
+    const payload = JSON.stringify({ action: "chat", name: attachment.name, server, text, color: attachment.color || "f" });
     for (const peer of this.ctx.getWebSockets()) {
       const peerAttachment = peer.deserializeAttachment() || {};
       if (!peerAttachment.authenticated) continue;

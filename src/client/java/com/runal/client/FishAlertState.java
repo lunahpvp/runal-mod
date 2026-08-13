@@ -6,8 +6,7 @@ public final class FishAlertState {
     public static final FishAlertState INSTANCE = new FishAlertState();
 
     public static final List<String> PARTICLE_TYPES = List.of(
-            "Electric Spark", "Splash", "Bubble", "Happy Villager", "Enchant",
-            "Crit", "Firework", "Soul Fire", "Totem", "Heart"
+            "Electric Spark", "Soul Fire", "Totem", "Firework"
     );
 
     private boolean enabled = true;
@@ -16,6 +15,8 @@ public final class FishAlertState {
     public boolean particlesEnabled = true;
     public String particleType = "Electric Spark";
     public float durationSeconds = 1.4f;
+    public boolean titleEnabled = true;
+    public String titleText = "!";
 
     private FishAlertState() {
     }

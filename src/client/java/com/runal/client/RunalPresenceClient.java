@@ -204,6 +204,7 @@ public final class RunalPresenceClient {
                 response.addProperty("uuid", user.getProfileId().toString());
                 response.addProperty("version", currentVersion());
                 response.addProperty("server", DiscordPresenceController.detectedServer());
+                response.addProperty("color", RunalChatState.chatColor);
                 webSocket.sendText(response.toString(), true);
             } catch (Exception error) {
                 LOGGER.warn("Could not authenticate Runal presence: {}", error.getMessage());
@@ -231,7 +232,8 @@ public final class RunalPresenceClient {
             }
             if ("chat".equals(action)) {
                 String server = message.has("server") ? message.get("server").getAsString() : "unknown";
-                handleChatReceived(server, message.get("name").getAsString(), message.get("text").getAsString());
+                String color = message.has("color") ? message.get("color").getAsString() : "f";
+                handleChatReceived(server, message.get("name").getAsString(), message.get("text").getAsString(), color);
                 return;
             }
             if ("chat_error".equals(action)) {
@@ -246,13 +248,13 @@ public final class RunalPresenceClient {
         }
     }
 
-    private static void handleChatReceived(String server, String name, String text) {
+    private static void handleChatReceived(String server, String name, String text, String color) {
         if (!RunalChatState.enabled) return;
         if (RunalChatIgnoreState.isIgnored(name)) return;
         Minecraft.getInstance().execute(() -> {
             var line = Message.colored("[RC] ", 0x55FFAA)
                     .append(Message.colored("(" + server + ") ", 0x777777))
-                    .append(Message.colored(name, 0xFFFFFF))
+                    .append(Message.colored(name, RunalChatState.chatColorRgb(color)))
                     .append(Message.colored(" » ", 0xAAAAAA))
                     .append(Message.colored(text, 0xFFFFFF));
             Message.sendRaw(line);
