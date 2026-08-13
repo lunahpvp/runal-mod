@@ -144,11 +144,19 @@ public class BuiltinModules {
         });
 
         ModuleManager.register(new Module() {
+            private final List<ModuleSetting> settings = List.of(
+                    new ToggleModuleSetting("Sound", () -> FishAlertState.INSTANCE.soundEnabled, v -> FishAlertState.INSTANCE.soundEnabled = v),
+                    new SliderModuleSetting("Volume", 0.1f, 2.0f, 0.1f, () -> FishAlertState.INSTANCE.soundVolume, v -> FishAlertState.INSTANCE.soundVolume = v),
+                    new SliderModuleSetting("Duration", 0.5f, 5.0f, 0.1f, () -> FishAlertState.INSTANCE.durationSeconds, v -> FishAlertState.INSTANCE.durationSeconds = v),
+                    new ToggleModuleSetting("Particles", () -> FishAlertState.INSTANCE.particlesEnabled, v -> FishAlertState.INSTANCE.particlesEnabled = v),
+                    new EnumModuleSetting("Particle Type", FishAlertState.PARTICLE_TYPES, () -> FishAlertState.INSTANCE.particleType, v -> FishAlertState.INSTANCE.particleType = v)
+            );
             public String getName() { return "Fish Alert"; }
-            public String getDescription() { return "Plays a sound and a bigger splash when a fish bites."; }
+            public String getDescription() { return "Plays a sound and particles when a fish bites."; }
             public String getCategory() { return "Visual"; }
             public boolean isEnabled() { return FishAlertState.INSTANCE.isEnabled(); }
             public void toggle() { FishAlertState.INSTANCE.toggle(); }
+            public List<ModuleSetting> getSettings() { return settings; }
         });
 
         ModuleManager.register(new Module() {
