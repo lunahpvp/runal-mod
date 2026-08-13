@@ -144,6 +144,14 @@ public class BuiltinModules {
         });
 
         ModuleManager.register(new Module() {
+            public String getName() { return "Fish Alert"; }
+            public String getDescription() { return "Plays a sound and a bigger splash when a fish bites."; }
+            public String getCategory() { return "Visual"; }
+            public boolean isEnabled() { return FishAlertState.INSTANCE.isEnabled(); }
+            public void toggle() { FishAlertState.INSTANCE.toggle(); }
+        });
+
+        ModuleManager.register(new Module() {
             private final List<ModuleSetting> settings = List.of(
                     new ToggleModuleSetting("Hide for Others", () -> HideArmorState.INSTANCE.hideForOthers, v -> HideArmorState.INSTANCE.hideForOthers = v),
                     new ToggleModuleSetting("Hide Helmet", () -> HideArmorState.INSTANCE.hideHelmet, v -> HideArmorState.INSTANCE.hideHelmet = v),

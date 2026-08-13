@@ -4,15 +4,8 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.network.chat.Component;
 
-/**
- * MageRPG's devs are adding a "RunalUtils" signal specifically for this mod: a chat message
- * tagged with a fixed signature color (#FF003E) that's sent only to the triggering player -
- * no player-name check needed, it's already private. This exists because vanilla's own
- * cooldown system only tracks one value per item, but weapons like Phoenix's Wrath have two
- * independently-timed techniques sharing the same item stack. Each known signal maps to a
- * named cooldown so both can be tracked and displayed at once. The message is hidden from
- * chat once recognized - it's a data signal, not something meant to be read.
- */
+// Signal messages are tagged with a fixed color, only sent to the triggering player.
+// They track multi-technique weapon cooldowns since vanilla only tracks one value per item.
 public class WeaponAbilityController {
     private static final int SIGNATURE_COLOR = 0xFF003E;
 

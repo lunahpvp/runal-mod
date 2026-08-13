@@ -30,6 +30,7 @@ public class DiscordPresenceController {
     private static final String[] MAGE_RPG_ADDRESSES = {
             "magerpg.minehut.gg",
             "magerpg.minekeep.gg",
+            "magerpg.net",
     };
     private static final String[] SCEPTER_RPG_ADDRESSES = {
             "scepterrpg.minehut.gg",
@@ -97,7 +98,7 @@ public class DiscordPresenceController {
         for (String address : SCEPTER_RPG_ADDRESSES) {
             if (normalized.contains(address)) return "ScepterRPG";
         }
-        // Anything else - show the real address instead of silently mislabeling it as
+        // Anything else shows the real address instead of silently mislabeling it as
         // ScepterRPG, which made Runal Chat/presence look Scepter-and-Mage-only elsewhere.
         return normalized.split(":")[0];
     }
@@ -138,8 +139,6 @@ public class DiscordPresenceController {
         boolean punchingBlock = mc.player != null && mc.hitResult != null
                 && mc.options.keyAttack.isDown() && mc.hitResult.getType() == HitResult.Type.BLOCK;
 
-        // needs a few ticks of actual punching, not just one click, or a stray swing gets
-        // stuck showing "Mining" until the next throttled update goes out
         if (punchingBlock) {
             miningStreakTicks++;
             if (miningStreakTicks >= MINING_CONFIRM_TICKS) lastConfirmedMiningMs = System.currentTimeMillis();

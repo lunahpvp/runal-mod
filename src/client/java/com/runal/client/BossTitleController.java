@@ -34,14 +34,7 @@ public class BossTitleController {
 
     private static final int DISPLAY_TICKS = 4 * 20;
 
-    // MageRPG boss chat lines are inconsistent about the "[BOSS]" tag - sometimes it's there,
-    // sometimes not (confirmed against live examples of both, plus varying separators: ":",
-    // "»", no separator at all). When the tag IS present, that alone reliably marks a genuine
-    // boss broadcast (players can't put "[BOSS]" in front of their own chat), so ANY name is
-    // accepted there - this is what makes newly-seen bosses like "Fallen Minerian" work without
-    // needing to be added to a list. When the tag is absent there's no other distinguishing
-    // signal from normal player chat (players show their own level the same way too), so that
-    // path stays restricted to known boss names.
+    // With the "[BOSS]" tag present any name is accepted; without it, only known names count.
     private static final String[] MAGE_RPG_BOSS_NAMES = {
             "Delta",
     };
@@ -68,9 +61,6 @@ public class BossTitleController {
             if (i > 0) names.append('|');
             names.append(Pattern.quote(MAGE_RPG_BOSS_NAMES[i]));
         }
-        // Not anchored to the start/end of the line on purpose - a "[BOSS] " prefix, or any
-        // other prefix, or its absence, is irrelevant as long as "Name [Lvl ...]" shows up
-        // somewhere followed by a message.
         return Pattern.compile(
                 "(" + names + ")\\s*\\[Lvl\\s+[^\\]]+]\\s*(?:[:»>]\\s*)?(.+)$",
                 Pattern.CASE_INSENSITIVE

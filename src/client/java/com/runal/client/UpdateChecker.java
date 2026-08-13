@@ -21,13 +21,6 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Same idea as Melinoe's update notifier - on every server join, checks whether a newer
- * Runal release exists and, if so, shows a title + sound + chat message pointing at the
- * download. The "is there a new version" check goes through Runal's own Cloudflare Worker
- * (which relays GitHub's latest-release tag, cached at the edge) rather than hitting
- * GitHub directly from the client.
- */
 public class UpdateChecker {
     private static final String LATEST_VERSION_URL = "https://runal-presence.lake-cockroach.workers.dev/latest-version";
     private static final String RELEASES_URL = "https://github.com/lunahpvp/runal-mod/releases/latest";
@@ -56,8 +49,6 @@ public class UpdateChecker {
         Minecraft.getInstance().execute(() -> notifyUpdate(current, latest));
     }
 
-    /** Loom's "friendly string" for the local mod is "1.1.0+26.1.2" (version + MC qualifier) -
-     *  strip everything from "+" on, both for display and before parsing into numeric parts. */
     private static String currentVersion() {
         return FabricLoader.getInstance().getModContainer("runal")
                 .map(container -> container.getMetadata().getVersion().getFriendlyString().split("\\+")[0])
@@ -95,8 +86,8 @@ public class UpdateChecker {
 
     private static int[] parseVersion(String version) {
         try {
-            // Loom's "friendly string" for the local mod is "1.1.0+26.1.2" (version + MC
-            // qualifier) - strip everything from "+" on before splitting into numeric parts.
+            // Loom's friendly string for the local mod is "1.1.0+26.1.2", the version plus
+            // the MC qualifier. This strips everything from "+" on before splitting.
             String core = version.trim().split("\\+")[0];
             String[] parts = core.split("\\.");
             int[] result = new int[3];
@@ -132,7 +123,7 @@ public class UpdateChecker {
         int dim = 0xAAAAAA;
 
         // Every piece below carries its own explicit style rather than relying on inheriting
-        // one from a shared parent - a styled separator() as the root once bled its
+        // one from a shared parent. A styled separator() as the root once bled its
         // strikethrough into every sibling appended after it.
         MutableComponent message = Component.empty();
         message.append(separator())
@@ -154,8 +145,6 @@ public class UpdateChecker {
         return message;
     }
 
-    /** A run of strikethrough spaces - the same "&m    &m" trick servers use for a clean
-     *  horizontal divider line, since strikethrough still draws through blank space. */
     private static MutableComponent separator() {
         return Component.literal(" ".repeat(40))
                 .withStyle(Style.EMPTY.withStrikethrough(true).withColor(TextColor.fromRgb(0x606060)));

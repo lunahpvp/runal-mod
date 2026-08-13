@@ -26,14 +26,6 @@ import java.util.Map;
 import java.util.function.Supplier;
 //?}
 
-/**
- * CPU-rasterized Inter text for graphics backends that cannot run NanoVGGL3.
- *
- * Each string is rasterized directly from the TTF at its final physical size. The
- * resulting exact-size texture is submitted through Minecraft's normal GUI texture
- * pipeline, which works on both the vanilla OpenGL backend and VulkanMod. No Minecraft
- * glyph atlas or fractional glyph scaling is involved.
- */
 public final class PortableTextRenderer {
     private static final Identifier FONT_RESOURCE =
             Identifier.fromNamespaceAndPath("scepterutils", "font/inter-28pt-medium.ttf");
@@ -74,8 +66,6 @@ public final class PortableTextRenderer {
 
     private static void drawTexture(GuiGraphicsExtractor context, TextTexture texture, int x, int y) {
         float inverseScale = 1f / texture.renderScale;
-        // Rasterize at the window's physical GUI scale, then cancel that scale only for
-        // this blit. Each source texel lands on one screen pixel instead of being enlarged.
         //? if 1.21.4 {
         /*context.pose().pushPose();
         context.pose().translate(x, y, 0f);
@@ -112,7 +102,6 @@ public final class PortableTextRenderer {
         //?}
     }
 
-    /** Draws the Telos/Melinoe-style color preview without pixel-stepped corners. */
     public static void drawColorSwatch(
             GuiGraphicsExtractor context,
             int x,

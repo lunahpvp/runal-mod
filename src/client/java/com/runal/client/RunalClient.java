@@ -67,6 +67,7 @@ public final class RunalClient implements ClientModInitializer {
         WeaponAbilityController.register();
         DungeonTrackerController.register();
         BossDefeatController.register();
+        FishAlertController.register();
         RunalPresenceClient.register();
     }
 }

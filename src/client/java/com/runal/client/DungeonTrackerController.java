@@ -75,8 +75,6 @@ public class DungeonTrackerController {
 
         String fullText = sb.toString();
 
-        // A guild-chat line always carries its "[G]" tag - reject those outright, same as Auto GG,
-        // so a player typing "... - Room 5" or "... run cancelled" themselves can't spoof progress.
         if (fullText.contains("[G]")) return;
 
         if (CANCELLED_PATTERN.matcher(fullText).find()) {

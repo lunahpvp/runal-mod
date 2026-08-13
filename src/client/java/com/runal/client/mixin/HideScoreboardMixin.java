@@ -9,10 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// Cancelling the render call didn't work (confirmed with VulkanMod both on and off), which
-// means whatever's actually drawing the sidebar isn't reachable through that render method at
-// all on this version. Going at the data layer instead: if there's no sidebar objective to
-// begin with, nothing has anything to draw, regardless of which renderer asks.
+// Cancelling the render call didn't work, so this hides the sidebar at the data layer instead.
 @Mixin(Scoreboard.class)
 public abstract class HideScoreboardMixin {
 

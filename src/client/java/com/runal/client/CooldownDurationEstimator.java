@@ -4,11 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * Vanilla item cooldowns only expose a percent, not a total duration. This estimates the total
- * duration from how the percent changes between two samples of the same cooldown, then derives a
- * remaining-ticks figure from that - accurate within a fraction of a second of the cooldown starting.
- */
+// Vanilla item cooldowns only expose a percent, not a total duration. This estimates it from
+// how the percent changes between two samples.
 class CooldownDurationEstimator {
     private record Ref(long tick, float percent) {
     }

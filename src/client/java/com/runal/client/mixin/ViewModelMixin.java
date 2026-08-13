@@ -34,9 +34,6 @@ public abstract class ViewModelMixin {
     @Shadow
     private float oOffHandHeight;
 
-    // Held-item position/rotation/scale offsets need the render-command-collector parameter
-    // that only exists on the newer submit-node rendering API (1.21.11/26.1.2/26.2). On 1.21.4
-    // those offsets are skipped; equip-animation and swing-speed still work everywhere below.
     //? if 1.21.4 {
     /*
     *///?} else {

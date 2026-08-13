@@ -3,12 +3,6 @@ package com.runal.client;
 //? if 1.21.4 || 1.21.11 || 26.2 {
 /*import net.minecraft.client.gui.GuiGraphicsExtractor;
 
-// NanoVG picture-in-picture rendering needs Minecraft's PictureInPictureRenderState/
-// GuiRenderState render-graph. On 1.21.4/1.21.11 that pipeline doesn't exist at all; on
-// 26.2 it exists but its MultiBufferSource/PictureInPictureRenderer wiring has moved
-// (see RunalScreen.renderContentNVG's 26.2 short-circuit to the legacy renderer) and
-// hasn't been ported yet. RunalScreen never calls draw() here on these versions, so
-// this stub only needs to exist to satisfy the compiler.
 public class NVGPIPRenderer {
     public static void draw(GuiGraphicsExtractor context, int x, int y, int width, int height, Runnable renderContent) {
     }
@@ -28,10 +22,6 @@ import net.minecraft.client.renderer.state.gui.pip.PictureInPictureRenderState;
 import org.joml.Matrix3x2f;
 import org.lwjgl.opengl.GL33C;
 
-/**
- * Picture-in-Picture renderer that lets NVGRenderer draw into the vanilla GUI pipeline.
- * Ported from Melinoe's me.melinoe.utils.ui.rendering.NVGPIPRenderer.
- */
 public class NVGPIPRenderer extends PictureInPictureRenderer<NVGPIPRenderer.NVGRenderState> {
 
     public NVGPIPRenderer(MultiBufferSource.BufferSource vertexConsumers) {
@@ -60,7 +50,6 @@ public class NVGPIPRenderer extends PictureInPictureRenderer<NVGPIPRenderer.NVGR
         state.renderContent.run();
         NVGRenderer.endFrame();
 
-        // Restore typical Minecraft GL state that NVG might have disrupted
         GlStateManager._disableDepthTest();
         GlStateManager._disableCull();
         GlStateManager._enableBlend();
@@ -125,18 +114,7 @@ public class NVGPIPRenderer extends PictureInPictureRenderer<NVGPIPRenderer.NVGR
         }
     }
 
-    /**
-     * Draw NVG content as a special GUI element.
-     *
-     * @param context       the GuiGraphicsExtractor to draw to
-     * @param x             the x position
-     * @param y             the y position
-     * @param width         the width of the rendering area
-     * @param height        the height of the rendering area
-     * @param renderContent a callback that draws the NVG content
-     */
     public static void draw(GuiGraphicsExtractor context, int x, int y, int width, int height, Runnable renderContent) {
-        // The PiP texture is sized from this box, so an empty or inverted one would crash
         if (width <= 0 || height <= 0) return;
         ScreenRectangle scissor = context.scissorStack.peek();
         Matrix3x2f pose = new Matrix3x2f(context.pose());

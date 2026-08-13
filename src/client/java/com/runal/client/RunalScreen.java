@@ -43,8 +43,6 @@ public class RunalScreen extends Screen {
     private static final Map<ModuleSetting, Float> TOGGLE_KNOB_ANIM = new HashMap<>();
     private static final String[] CATEGORY_ORDER = { "Combat", "Visual", "Tracking", "Misc" };
 
-    // Runal's compact logical dimensions. Melinoe's independent resolution scale
-    // is applied to these; Minecraft's configurable GUI scale is not.
     private static final int COLUMN_WIDTH = 240;
     private static final int COLUMN_GAP = 20;
     private static final int ROW_HEIGHT = 29;
@@ -88,7 +86,6 @@ public class RunalScreen extends Screen {
     private static final int COLOR_ACCENT = 0xFF35D77A;
     private static final int COLOR_ACCENT_ROW = 0xF0183224;
     private static final int COLOR_SEARCH_BG = 0xE8111216;
-    /** Melinoe's exact ClickGUI.gray26 - flat panel/header/off-row fill for the NVG chrome. */
     private static final int COLOR_GRAY26 = 0xFF1A1A1A;
 
     private static final long OPEN_ANIM_DURATION_MS = 450L;
@@ -177,9 +174,6 @@ public class RunalScreen extends Screen {
         }
 
         searchBox = new EditBox(
-                // The borderless EditBox draws its glyph baseline higher than our
-                // custom 20px search chrome. Shift only the input layer down so
-                // typed text is optically centered inside the visible field.
                 this.font, (this.width - 220) / 2, this.height - 28, 220, 20,
                 Component.literal("Search")
         );
@@ -221,10 +215,6 @@ public class RunalScreen extends Screen {
         return clamped * clamped * (3f - 2f * clamped);
     }
 
-    /**
-     * Melinoe's ClickGUI scale. It is intentionally independent from Minecraft's
-     * configurable GUI Scale option, so that option cannot inflate panel geometry.
-     */
     private float getStandardGuiScale() {
         var window = Minecraft.getInstance().getWindow();
         float verticalScale = (window.getScreenHeight() / 1080f) / NVGRenderer.devicePixelRatio();
@@ -234,11 +224,6 @@ public class RunalScreen extends Screen {
         return Math.round(scale * 10f) / 10f;
     }
 
-    /**
-     * Converts the ClickGUI's physical-pixel scale into Minecraft GUI coordinates.
-     * Minecraft's renderer applies its configured GUI scale after this pose, so dividing
-     * by that scale keeps a 180px Runal column 180px wide on both OpenGL and Vulkan.
-     */
     private float getPortableGuiScale() {
         var window = Minecraft.getInstance().getWindow();
         float minecraftGuiScale = window.getScreenWidth() / (float) Math.max(1, this.width);
@@ -550,13 +535,11 @@ public class RunalScreen extends Screen {
     }
 
     /**
-     * NanoVG's font functions (nvgFontFaceId etc.) are only safe to call from inside the
-     * active deferred NVG frame (the NVGPIPRenderer callback) - calling them synchronously,
-     * like from this method during layout, segfaults the JVM (confirmed via crash log: a
-     * native access violation inside lwjgl_nanovg.dll from nvgFontFaceId). Layout math that
-     * needs a width *before* queuing the actual (correctly-deferred) NVG draw call has to
-     * estimate it some other way - vanilla font width scaled to the target NVG size is a
-     * close enough proxy, since both fonts are normal-proportioned sans-serif.
+     * NanoVG font functions like nvgFontFaceId are only safe to call from inside the active
+     * deferred NVG frame in NVGPIPRenderer. Calling them here during layout segfaults the JVM,
+     * confirmed via crash log. Layout math needing a width before the actual NVG draw call
+     * estimates it with vanilla font width scaled to the NVG size instead, since both fonts
+     * are normal proportioned sans serif.
      */
     private float estimateNvgTextWidth(String text, float nvgSize) {
         return font.width(styled(text)) * (nvgSize / 9f);
@@ -605,8 +588,6 @@ public class RunalScreen extends Screen {
         }
     }
 
-    // Layout of the expanded HSB color picker (top label/swatch row, then square, hue strip,
-    // hex box below it) - shared by rendering and click hit-testing so they can never drift.
     private static final int PICKER_TOP_ROW = SUB_ROW_HEIGHT;
     private static final int PICKER_GAP = 4;
     private static final int PICKER_SQUARE_H = 60;
@@ -723,7 +704,6 @@ public class RunalScreen extends Screen {
         slider.setNormalizedValue((mouseX - trackX) / (float) trackW);
     }
 
-    /** rowY here is the setting's own row start, matching settingRowY used during rendering. */
     private void handleColorPickerClick(ColorModuleSetting colorSetting, int panelX, int rowY, int mouseX, int mouseY) {
         if (!colorSetting.isExtended()) {
             colorSetting.onClick();
@@ -732,7 +712,7 @@ public class RunalScreen extends Screen {
 
         int localY = mouseY - rowY;
         if (localY < PICKER_TOP_ROW) {
-            colorSetting.onClick(); // clicked the label/swatch row again - collapse
+            colorSetting.onClick();
             return;
         }
 
@@ -774,8 +754,8 @@ public class RunalScreen extends Screen {
     //?}
 
     // Both renderContentLegacy and renderContentNVG are compiled for every Stonecutter target
-    // (Stonecutter's //? preprocessor doesn't compose when a conditional block is nested inside
-    // another one's commented-out branch), but only one of them is ever called per version - see
+    // since the //? preprocessor doesn't compose when a conditional block is nested inside
+    // another one's commented-out branch. Only one of them is ever called per version, see
     // the render()/extractRenderState() dispatch above.
     private void renderContentLegacy(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks) {
         context.fillGradient(0, 0, this.width, this.height, COLOR_BACKDROP_TOP, COLOR_BACKDROP_BOTTOM);
@@ -945,11 +925,6 @@ public class RunalScreen extends Screen {
         PortableTextRenderer.draw(context, text, x, drawY, pixelHeight, color);
     }
 
-    /**
-     * Backend-independent port of the NanoVG ClickGUI. This intentionally uses the same
-     * physical-pixel coordinate space, flat rows, sizing, colors, and animations as the
-     * OpenGL path, but records ordinary Minecraft GUI primitives so VulkanMod can render it.
-     */
     private void renderContentPortable(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks) {
         context.fillGradient(0, 0, this.width, this.height, COLOR_BACKDROP_TOP, COLOR_BACKDROP_BOTTOM);
 
@@ -1057,9 +1032,9 @@ public class RunalScreen extends Screen {
 
                 context.fill(panel.x, rowY, panel.x + COLUMN_WIDTH, rowY + ROW_HEIGHT, rowColor);
                 String moduleName = module.getName();
-                // toggle only, not hover - hover is a continuously-animating value, and
+                // Uses toggle only, not hover. Hover is a continuously animating value, and
                 // PortableTextRenderer caches rasterized text by its exact color, so feeding an
-                // animated value in here regenerated (and re-uploaded to the GPU) a texture on
+                // animated value in here regenerated and re-uploaded a texture to the GPU on
                 // nearly every frame for every hovered module. The row's own background color
                 // above already conveys hover state via a cheap direct fill, no caching involved.
                 int textColor = mixColor(COLOR_TEXT, 0xFFFFFFFF, toggle);
@@ -1326,7 +1301,6 @@ public class RunalScreen extends Screen {
         }
     }
 
-    /** Thick chevron matching Melinoe's chevron.svg, rasterized for VulkanMod. */
     private void drawChevronPortable(GuiGraphicsExtractor context, int centerX, int centerY, boolean expanded, int color) {
         for (int step = -10; step <= 10; step++) {
             int advance = 10 - Math.abs(step);
@@ -1406,16 +1380,8 @@ public class RunalScreen extends Screen {
         );
     }
 
-    // NanoVG-based chrome. Layout/animation-state math is identical to renderContentLegacy
-    // above; only the shape drawing backend changed (real anti-aliased vector shapes,
-    // drop shadows and gradients instead of per-pixel rounded-rect approximation).
-    // Vector chrome is recorded into `nvg` and executed later, inside the deferred
-    // NVGPIPRenderer callback; text still goes through Minecraft's font renderer,
-    // drawn immediately here (via `context`) so it lands on top of the vector layer.
     private void renderContentNVG(GuiGraphicsExtractor context, int mouseX, int mouseY, float deltaTicks) {
         //? if 26.1.2 {
-        // NanoVGGL3 requires Minecraft's OpenGL backend. VulkanMod replaces it with
-        // Vulkan, so draw the same compact GUI through Minecraft's portable primitives.
         if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("vulkanmod")) {
             renderContentPortable(context, mouseX, mouseY, deltaTicks);
             return;
@@ -1431,9 +1397,6 @@ public class RunalScreen extends Screen {
         int minecraftMouseX = mouseX;
         int minecraftMouseY = mouseY;
 
-        // Melinoe does not use Screen's GUI-scaled mouse arguments. Its panels live in
-        // the independent ClickGUI coordinate space, so use the raw cursor divided by
-        // that same scale for rendering, hovering, dragging, and hit testing.
         mouseX = scaledNvgMouseX();
         mouseY = scaledNvgMouseY();
 
@@ -1476,15 +1439,9 @@ public class RunalScreen extends Screen {
             nvg.add(() -> drawPanelShadowNVG(px, py, COLUMN_WIDTH, shadowHeight));
             nvg.add(() -> drawPanelHeaderCapNVG(px, py, COLUMN_WIDTH, HEADER_HEIGHT));
             String categoryName = panel.category;
-            // Real vector text via NVG - no bitmap-atlas rescaling, so it stays crisp at any
-            // size instead of the uneven stroke-thickness artifact the old scaled bitmap font had.
             nvg.add(() -> NVGRenderer.textCentered(categoryName, px, py, COLUMN_WIDTH, HEADER_HEIGHT, 24f, COLOR_HEADER_TEXT));
 
             boolean lastVisibleEnabled = !visible.isEmpty() && visible.get(visible.size() - 1).isEnabled();
-            // If anything in this panel is expanded, its settings (transparent, showing the
-            // panel's own gray26) may be what's actually sitting right above the cap - not
-            // necessarily the last module in the list - so an accent-colored cap could mismatch
-            // what's directly above it. Only tint the cap when the panel is a plain flat list.
             boolean anyExpanded = visible.stream().anyMatch(EXPANDED::contains);
             int capColor = (!anyExpanded && lastVisibleEnabled) ? accentColor() : COLOR_GRAY26;
 
@@ -1509,24 +1466,15 @@ public class RunalScreen extends Screen {
                 TOGGLE_ANIM.put(module, module.isEnabled() ? 1f : 0f);
                 animate(HOVER_ANIM, module, hovered ? 1f : 0f, 0.22f);
                 // Was previously just written and never read back, so settings popped open
-                // instantly - actually reading the lerped value here is what makes it slide,
+                // instantly. Actually reading the lerped value here is what makes it slide,
                 // matching Melinoe's ModuleButton.kt EaseInOutAnimation on extendAnim.
                 animate(EXPAND_ANIM, module, EXPANDED.contains(module) ? 1f : 0f, 0.18f);
 
                 float toggle = module.isEnabled() ? 1f : 0f;
                 float hover = easeOutQuart(anim(HOVER_ANIM, module));
-                // No easeOutQuart wrapper here (unlike hover) - animate()'s own lerp convergence
-                // already decelerates near its target in both directions. Stacking easeOutQuart
-                // on top biased heavily toward "already at 1" while opening (looked instant) and
-                // "still at 1" while closing (looked like nothing happened, then a sudden snap).
                 float expand = anim(EXPAND_ANIM, module);
-                // Flat fill matching Melinoe's ModuleButton.kt: solid accent when on, solid
-                // gray26 when off, with only a subtle brighten on hover - no gradient/blend.
                 int rowColor = brighten(module.isEnabled() ? accentColor() : COLOR_GRAY26, (int) (hover * 10f));
 
-                // Melinoe shows a description tooltip beside a module/setting once hover has
-                // been sustained long enough (HoverHandler reaching 100%) - HOVER_ANIM converges
-                // toward 1 the same way, so reusing it gives the same "wait a beat" behavior.
                 if (hover > 0.97f && !module.getDescription().isEmpty()) {
                     tooltipText = module.getDescription();
                     tooltipX = panel.x + COLUMN_WIDTH + 10;
@@ -1569,8 +1517,6 @@ public class RunalScreen extends Screen {
                                 nvg.add(() -> drawSettingSeparatorNVG(px, settingRowY, COLUMN_WIDTH));
                             }
                             if (setting instanceof ColorModuleSetting colorSetting) {
-                                // No hex readout on the collapsed row - matches Melinoe's ColorSetting.kt,
-                                // which only shows label + swatch until the picker itself is opened.
                                 nvg.add(() -> NVGRenderer.textLeft(colorSetting.getLabel(), px + SUB_TEXT_LEFT_PADDING, settingRowY, PICKER_TOP_ROW, SETTING_TEXT_SIZE, 0xFFFFFFFF));
                                 nvg.add(() -> drawSettingControlNVG(colorSetting, px, settingRowY, PICKER_TOP_ROW, subHovered));
                                 if (colorSetting.isExtended()) {
@@ -1579,13 +1525,8 @@ public class RunalScreen extends Screen {
                                     nvg.add(() -> drawColorPickerHexText(colorSetting, px, pickerY, COLUMN_WIDTH));
                                 }
                             } else {
-                                // Toggles show state via the switch itself, not text - matches
-                                // Melinoe's BooleanSetting.kt, which never draws "On"/"Off".
                                 boolean isToggle = setting instanceof ToggleModuleSetting;
                                 boolean isGroup = setting instanceof SettingGroup;
-                                // Enum/Keybind values sit centered inside the chip drawn by
-                                // drawSettingControlNVG, in pure white - matches Melinoe's
-                                // SelectorSetting.kt/KeybindSetting.kt exactly.
                                 boolean isChip = setting instanceof EnumModuleSetting || setting instanceof KeybindModuleSetting;
                                 String valueText = isToggle || isGroup ? "" : setting.getDisplayValue();
                                 float rowTextSize = isGroup ? GROUP_TEXT_SIZE : SETTING_TEXT_SIZE;
@@ -1636,9 +1577,6 @@ public class RunalScreen extends Screen {
             }
 
             nvg.add(NVGRenderer::popScissor);
-            // Use the actual accumulated row position, not panelHeight - animatedPanelHeight()
-            // still carries +5/+4 padding left over from the old inset row style, which would
-            // otherwise leave a gap between the last row and this cap.
             int capY = Math.min(rowY, contentBottom);
             nvg.add(() -> drawPanelBottomCapNVG(px, capY, COLUMN_WIDTH, 10, capColor));
             if (maxScroll > 0) {
@@ -1647,9 +1585,6 @@ public class RunalScreen extends Screen {
             }
         }
 
-        // Built here (coordinates already known) but drawn in a separate, later PiP pass below -
-        // queuing it into the same `nvg` list as the panels wasn't enough to guarantee it landed
-        // on top of *other* panels next to the one it's for.
         Runnable tooltipDraw = null;
         if (tooltipText != null) {
             String finalTooltip = tooltipText;
@@ -1676,8 +1611,6 @@ public class RunalScreen extends Screen {
         context.pose().popMatrix();
         //?}
 
-        // Copy Melinoe's independent resolution scale exactly. Minecraft's GUI Scale
-        // may resize vanilla widgets/text, but it must never inflate these panel boxes.
         float guiScale = getStandardGuiScale();
         int screenW = this.width;
         int screenH = this.height;
@@ -1691,14 +1624,9 @@ public class RunalScreen extends Screen {
             NVGRenderer.pop();
         });
 
-        // These two controls are still vanilla GUI elements, so they intentionally
-        // keep Minecraft's own GUI-scaled coordinates.
         drawSearchChrome(context, minecraftMouseX, minecraftMouseY);
         drawResetButton(context, minecraftMouseX, minecraftMouseY);
 
-        // Separate, later PiP call: NVGPIPRenderer.draw(...) calls composite in the order
-        // they're issued, so a second call made strictly after the panels' call is guaranteed
-        // to land on top of all of it, including neighboring panels the tooltip overlaps.
         if (finalTooltipDraw != null) {
             NVGPIPRenderer.draw(context, 0, 0, context.guiWidth(), context.guiHeight(), () -> {
                 NVGRenderer.scale(guiScale, guiScale);
@@ -1708,12 +1636,10 @@ public class RunalScreen extends Screen {
         //?}
     }
 
-    /** Header cap: rounded top corners only, flat fill - matches Melinoe's Panel.kt exactly. */
     private void drawPanelHeaderCapNVG(int x, int y, int w, int h) {
         NVGRenderer.halfRoundedRect(x, y, w, h, COLOR_GRAY26, menuPanelRadius(), true);
     }
 
-    /** Bottom cap: rounded bottom corners only, colored by whether the last module is on. */
     private void drawPanelBottomCapNVG(int x, int y, int w, int h, int color) {
         NVGRenderer.halfRoundedRect(x, y, w, h, color, menuPanelRadius(), false);
     }
@@ -1724,7 +1650,6 @@ public class RunalScreen extends Screen {
         NVGRenderer.rect(x + 3, y + 5, w, h, 0x50000000, radius);
     }
 
-    /** Flat, seamless module row - no radius, no border, no glow. Matches ModuleButton.kt. */
     private void drawModuleRowNVG(int x, int y, int w, int h, int color) {
         NVGRenderer.rect(x, y, w, h, color);
     }
@@ -1733,23 +1658,17 @@ public class RunalScreen extends Screen {
         NVGRenderer.rect(x + 10, y, width - 20, 1, alpha(accentColor(), 0.60f));
     }
 
-    /** Toggle/color/group controls as flat square vector shapes - no radius. */
     private void drawSettingControlNVG(ModuleSetting setting, int x, int y, int h, boolean hovered) {
         int controlY = y + 4;
 
         if (setting instanceof ToggleModuleSetting toggle) {
             boolean on = toggle.getValue();
             int bg = on ? accentColor() : 0xFF2A2D34;
-            // Sized to fit inside a row (h is as small as SUB_ROW_HEIGHT=16) so adjacent
-            // toggles never overflow into each other - the old fixed 34x20 track was taller
-            // than the row itself and visibly bled into neighboring rows.
             float trackW = 20f, trackH = Math.min(11f, h - 4f);
             float trackX = x + COLUMN_WIDTH - 30;
             float trackY = y + (h - trackH) / 2f;
             NVGRenderer.rect(trackX, trackY, trackW, trackH, bg, trackH / 2f);
             float knobR = trackH / 2f - 1.5f;
-            // Knob slides between off/on positions instead of snapping, matching Melinoe's
-            // BooleanSetting.kt (LinearAnimation over the knob's x position).
             animateSetting(TOGGLE_KNOB_ANIM, toggle, on ? 1f : 0f, 0.3f);
             float knobT = animSetting(TOGGLE_KNOB_ANIM, toggle);
             float knobX = lerp(trackX + knobR, trackX + trackW - knobR, knobT);
@@ -1760,15 +1679,8 @@ public class RunalScreen extends Screen {
             NVGRenderer.rect(swatchX, swatchY, 34f, 20f, color.getColor(), 5f);
             NVGRenderer.hollowRect(swatchX, swatchY, 34f, 20f, 2f, darkenColor(color.getColor()), 5f);
         } else if (setting instanceof SettingGroup group) {
-            // Down when collapsed, sideways (rotated 90 degrees) when expanded - matches
-            // Melinoe's DropdownSetting.kt chevron rotation exactly.
             drawChevronNVG(x + COLUMN_WIDTH - 18, y + h / 2f, 11f, group.isExpanded(), 0xFFFFFFFF);
         } else if (setting instanceof EnumModuleSetting || setting instanceof KeybindModuleSetting) {
-            // Bordered chip matching Melinoe's SelectorSetting.kt/KeybindSetting.kt: gray38 fill,
-            // accent-colored hollow outline, pure white text (drawn separately via overlay).
-            // Must measure with the SAME renderer/size the text itself draws with (NVG at
-            // SETTING_TEXT_SIZE) - measuring via the old vanilla font gave a mismatched width,
-            // which is why the text looked off-center inside the chip.
             String value = setting.getDisplayValue();
             int valueWidth = (int) NVGRenderer.textWidth(value, CHIP_TEXT_SIZE);
             float chipW = valueWidth + 10f;
@@ -1781,20 +1693,16 @@ public class RunalScreen extends Screen {
         }
     }
 
-    /** Chevron pointing down (collapsed) or sideways (expanded) - replaces the old +/- text glyph. */
     private void drawChevronNVG(float centerX, float centerY, float armLength, boolean expanded, int color) {
         if (expanded) {
-            // Points right: apex at (centerX + armLength, centerY)
             NVGRenderer.line(centerX - armLength * 0.55f, centerY - armLength, centerX + armLength * 0.45f, centerY, 4f, color);
             NVGRenderer.line(centerX + armLength * 0.45f, centerY, centerX - armLength * 0.55f, centerY + armLength, 4f, color);
         } else {
-            // Points down: apex at (centerX, centerY + armLength)
             NVGRenderer.line(centerX - armLength, centerY - armLength * 0.55f, centerX, centerY + armLength * 0.45f, 4f, color);
             NVGRenderer.line(centerX, centerY + armLength * 0.45f, centerX + armLength, centerY - armLength * 0.55f, 4f, color);
         }
     }
 
-    /** Bounds of the picker's saturation/brightness square, in the same space used to draw it. */
     private float[] colorPickerSquareBounds(int x, int y, int w) {
         int margin = 8;
         return new float[]{x + margin, y, w - margin * 2f, PICKER_SQUARE_H};
@@ -1805,7 +1713,6 @@ public class RunalScreen extends Screen {
         return new float[]{square[0], square[1] + square[3] + PICKER_GAP, square[2], PICKER_HUE_H};
     }
 
-    /** Melinoe-style HSB color picker: draggable saturation/brightness square + hue strip. */
     private void drawColorPickerNVG(ColorModuleSetting colorSetting, int x, int y, int w) {
         float[] hsb = colorSetting.getHSB();
         float[] square = colorPickerSquareBounds(x, y, w);
@@ -1821,9 +1728,6 @@ public class RunalScreen extends Screen {
         NVGRenderer.circle(pointerX, pointerY, 4f, 0xFF000000 | (colorSetting.getColor() & 0xFFFFFF));
 
         float[] hue = colorPickerHueBounds(x, y, w);
-        // Six real 2-color gradients back to back (red->yellow->green->cyan->blue->magenta->red)
-        // instead of many flat color chips - each segment's end color exactly matches the next
-        // segment's start color, so there's no visible seam anywhere, just a continuous rainbow.
         int stops = 6;
         float segW = hue[2] / stops;
         for (int i = 0; i < stops; i++) {

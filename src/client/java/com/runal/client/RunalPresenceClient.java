@@ -71,8 +71,6 @@ public final class RunalPresenceClient {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> disconnect());
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> disconnect());
 
-        // Lets "# hey guys" typed straight into normal chat go to Runal Chat instead of the
-        // server, without needing the full /rc command.
         ClientSendMessageEvents.ALLOW_CHAT.register(rawMessage -> {
             if (!rawMessage.startsWith("#")) return true;
 
@@ -308,7 +306,6 @@ public final class RunalPresenceClient {
                 claims.add(claim);
                 presentKeys.add(claim.key());
             } catch (Exception ignored) {
-                // Ignore malformed claims without dropping the rest of the snapshot.
             }
         }
 

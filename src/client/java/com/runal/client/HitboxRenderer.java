@@ -85,9 +85,6 @@ public class HitboxRenderer {
         for (Entity entity : mc.level.entitiesForRendering()) {
             if (entity.isRemoved()) continue;
             if (entity == mc.player && mc.options.getCameraType().isFirstPerson()) continue;
-            // Server-side display/interaction helpers can have enormous synthetic
-            // bounding boxes. Rendering those is what produced the blue plane across
-            // the screen. "Entities" here means mobs/players and dropped items.
             if (entity instanceof ArmorStand) continue;
             if (!(entity instanceof LivingEntity) && !(entity instanceof ItemEntity)) continue;
 

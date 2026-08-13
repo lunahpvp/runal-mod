@@ -50,20 +50,13 @@ public class AutoGGController {
 
         String fullText = sb.toString().replaceAll("\\p{Zs}", " ");
 
-        // A guild-chat line always carries its "[G]" tag - reject those outright, whoever's
-        // typing could say "has found" themselves. Otherwise, this server marks its own genuine
-        // broadcasts with a "|" bar, so require both that and the actual find text.
         if (fullText.contains("[G]")) return false;
 
         if (fullText.contains("|")) {
-            // Achievement completions have no rarity to filter on - any genuine broadcast counts.
             if (fullText.contains(ACHIEVEMENT_MARKER)) return true;
             return matchesFoundRarity(fullText, runs, ranges);
         }
 
-        // MageRPG's own "has found" broadcasts don't carry a "|" bar at all, so they'd never
-        // reach the check above - this is a separate, independent path for that server's format,
-        // same rarity-color logic, without requiring the bar. Does not affect the Scepter path.
         return matchesFoundRarity(fullText, runs, ranges);
     }
 
@@ -74,9 +67,6 @@ public class AutoGGController {
 
         boolean matchesRarity = false;
         String itemSegment = fullText.substring(itemStart);
-        // &6 (gold) = legendary, &5 (dark purple) = epic, &d (light purple) = mythical. Bold is
-        // not required - the server sends the same find both bolded and plain, and only one of
-        // those two copies needs to match for this to count.
         if (containsLegacyCode(itemSegment, '6')) matchesRarity = AutoGGState.INSTANCE.triggerLegendary;
         else if (containsLegacyCode(itemSegment, '5')) matchesRarity = AutoGGState.INSTANCE.triggerEpic;
         else if (containsLegacyCode(itemSegment, 'd')) matchesRarity = AutoGGState.INSTANCE.triggerMythical;

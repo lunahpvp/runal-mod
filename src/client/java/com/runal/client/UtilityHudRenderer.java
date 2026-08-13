@@ -219,9 +219,6 @@ public class UtilityHudRenderer {
                 String key = "item:" + name;
                 activeKeys.add(key);
                 String value = valueFor(seconds, percent, key, nowTick);
-                // Use the item's own real name color (its actual rarity color, straight from the
-                // game) instead of one fixed color for every item, falling back to the configured
-                // default only for items with no explicit color of their own.
                 var itemColor = stack.getHoverName().getStyle().getColor();
                 int nameColor = itemColor != null ? (0xFF000000 | itemColor.getValue()) : ItemCooldownHudState.nameColor;
                 entries.add(new CooldownEntry(name, value, nameColor, ItemCooldownHudState.valueColor));
@@ -360,9 +357,6 @@ public class UtilityHudRenderer {
         return lines;
     }
 
-    /** Mirrors drawTrackingPanel's own sizing so the HUD editor's drag box always matches
-     *  the real panel exactly, instead of the fixed guess it used to be drawn with (which
-     *  drifted out of sync whenever a sub-toggle changed which lines were shown). */
     public static int performanceHudWidth() {
         Minecraft mc = Minecraft.getInstance();
         int width = PortableTextRenderer.width("Performance", TRACKING_FONT_SIZE) + 12;

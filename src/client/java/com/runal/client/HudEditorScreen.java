@@ -208,8 +208,6 @@ public class HudEditorScreen extends Screen {
             String preview = BossTitleState.currentText != null ? BossTitleState.currentText : "Flame Prison!";
             int w = (int) (font.width(preview) * BossTitleState.scale);
             int h = (int) (font.lineHeight * BossTitleState.scale);
-            // x/y here are the widget's center, not its top-left, so clamp the equivalent
-            // top-left corner and convert back rather than clamping the center directly.
             int[] p = clamp(x - w / 2, y - h / 2, w, h);
             BossTitleState.x = p[0] + w / 2; BossTitleState.y = p[1] + h / 2;
         }

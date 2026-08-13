@@ -17,12 +17,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Whether this account is banned from Runal, checked against Runal's own Cloudflare Worker.
- * This is independent of any Minecraft server connection (the account's own Mojang UUID is
- * enough) and rechecks on its own timer, so a ban applied mid-session still takes effect
- * without needing a relog.
- */
 public final class RunalBanState {
     private static final Logger LOGGER = LoggerFactory.getLogger("Runal Ban");
     private static final String BAN_STATUS_URL =

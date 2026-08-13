@@ -13,16 +13,6 @@ import static org.lwjgl.nanovg.NanoVG.*;
 import static org.lwjgl.nanovg.NanoVGGL3.*;
 import static org.lwjgl.system.MemoryUtil.memAlloc;
 
-/**
- * Minimal NanoVG wrapper used to draw the ClickGUI's chrome (panels, rows, toggles,
- * sliders) and text as real anti-aliased vector graphics instead of Runal's older
- * per-pixel rounded-rect approximation and Minecraft's bitmap-atlas font (which
- * visibly loses stroke consistency when rescaled - the actual thing that made text
- * look "half-thin" at some sizes; a vector outline never has that problem).
- *
- * Ported from Melinoe's me.melinoe.utils.ui.rendering.NVGRenderer. The bundled font
- * is a byte-identical copy of Melinoe's own (Inter 28pt Medium, SIL Open Font License).
- */
 public final class NVGRenderer {
 
     public enum Gradient { LEFT_TO_RIGHT, TOP_TO_BOTTOM }
@@ -54,8 +44,6 @@ public final class NVGRenderer {
             byte[] bytes = stream.readAllBytes();
             ByteBuffer buffer = memAlloc(bytes.length);
             buffer.put(bytes).flip();
-            // freeData=true: NanoVG takes ownership of this buffer for the font's lifetime
-            // (which is the whole session - the font is never deleted).
             fontId = nvgCreateFontMem(vg, "inter", buffer, true);
             if (fontId == -1) throw new IllegalStateException("nvgCreateFontMem failed");
         } catch (IOException | RuntimeException e) {
@@ -155,10 +143,8 @@ public final class NVGRenderer {
         nvgFill(vg);
     }
 
-    /** Rounds only the top-left/top-right (roundTop) or bottom-left/bottom-right corners. */
     public static void halfRoundedRect(float x, float y, float w, float h, int color, float radius, boolean roundTop) {
-        // nvgArcTo degenerates badly at radius 0 (can leave a visible seam/gap at the "corner"
-        // instead of cleanly collapsing to a straight line) - just draw a plain rect instead.
+        // nvgArcTo degenerates badly at radius 0, so just draw a plain rect instead.
         if (radius <= 0.01f) {
             rect(x, y, w, h, color);
             return;
@@ -235,7 +221,6 @@ public final class NVGRenderer {
         nvgFill(vg);
     }
 
-    /** Draws text left-aligned, top-anchored at (x, y). */
     public static void text(String text, float x, float y, float size, int color) {
         nvgFontFaceId(vg, fontId);
         nvgFontSize(vg, size);
@@ -245,7 +230,6 @@ public final class NVGRenderer {
         nvgText(vg, x, y, text);
     }
 
-    /** Draws text centered on both axes within the given box. */
     public static void textCentered(String text, float boxX, float boxY, float boxW, float boxH, float size, int color) {
         nvgFontFaceId(vg, fontId);
         nvgFontSize(vg, size);
@@ -255,7 +239,6 @@ public final class NVGRenderer {
         nvgText(vg, boxX + boxW / 2f, boxY + boxH / 2f, text);
     }
 
-    /** Draws text left-aligned, vertically centered within [boxY, boxY+boxH]. */
     public static void textLeft(String text, float x, float boxY, float boxH, float size, int color) {
         nvgFontFaceId(vg, fontId);
         nvgFontSize(vg, size);

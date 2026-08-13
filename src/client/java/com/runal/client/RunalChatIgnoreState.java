@@ -4,8 +4,6 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-/** Purely a local, client-side filter on incoming Runal Chat messages - unlike mute (server-
- *  enforced, admin-only), anyone can ignore anyone; it only affects what they personally see. */
 public final class RunalChatIgnoreState {
     private static final Set<String> IGNORED = new LinkedHashSet<>();
 
