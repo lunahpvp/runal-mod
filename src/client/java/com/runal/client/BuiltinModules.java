@@ -379,7 +379,7 @@ public class BuiltinModules {
 
         ModuleManager.register(new Module() {
             private final List<ModuleSetting> settings = List.of(
-                    new SliderModuleSetting("Scale", 0.25f, 1.0f, 0.05f, () -> BossBarScaleState.INSTANCE.scale, v -> BossBarScaleState.INSTANCE.scale = v),
+                    new SliderModuleSetting("Scale", 0.25f, 3.0f, 0.05f, () -> BossBarScaleState.INSTANCE.scale, v -> BossBarScaleState.INSTANCE.scale = v),
                     new KeybindModuleSetting(RunalKeybinds.bossBarScale())
             );
             public String getName() { return "Boss Bar Scale"; }
