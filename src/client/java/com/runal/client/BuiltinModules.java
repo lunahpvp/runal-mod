@@ -293,6 +293,11 @@ public class BuiltinModules {
             private final List<ModuleSetting> settings = List.of(
                     new ColorModuleSetting("Name Color", () -> ItemCooldownHudState.nameColor, v -> ItemCooldownHudState.nameColor = v),
                     new ColorModuleSetting("Value Color", () -> ItemCooldownHudState.valueColor, v -> ItemCooldownHudState.valueColor = v),
+                    new ToggleModuleSetting("Semiramis AI Cooldown", () -> SemiramisAIState.cooldownEnabled, v -> {
+                        SemiramisAIState.cooldownEnabled = v;
+                        if (v) SemiramisAIController.sendPhoeCommand();
+                    }),
+                    new ToggleModuleSetting("Semiramis Messages", () -> SemiramisAIState.showMessages, v -> SemiramisAIState.showMessages = v),
                     new KeybindModuleSetting(RunalKeybinds.weaponCooldown())
             );
             public String getName() { return "Weapon Cooldown"; }
@@ -322,11 +327,6 @@ public class BuiltinModules {
             private final List<ModuleSetting> settings = List.of(
                     new ColorModuleSetting("Name Color", () -> AccessoryCooldownState.nameColor, v -> AccessoryCooldownState.nameColor = v),
                     new ColorModuleSetting("Value Color", () -> AccessoryCooldownState.valueColor, v -> AccessoryCooldownState.valueColor = v),
-                    new ToggleModuleSetting("Semiramis AI Cooldown", () -> SemiramisAIState.cooldownEnabled, v -> {
-                        SemiramisAIState.cooldownEnabled = v;
-                        if (v) SemiramisAIController.sendPhoeCommand();
-                    }),
-                    new ToggleModuleSetting("Show Semiramis Messages", () -> SemiramisAIState.showMessages, v -> SemiramisAIState.showMessages = v),
                     new KeybindModuleSetting(RunalKeybinds.accessoryCooldown())
             );
             public String getName() { return "Accessory Cooldown"; }
