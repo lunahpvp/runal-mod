@@ -2,30 +2,32 @@ package com.runal.client;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
+
+import java.util.regex.Pattern;
 
 public class SemiramisAIController {
     private static final String SEMIRAMIS_PREFIX = "Semiramis AI";
     private static final String HEAL_TRIGGER_PHRASE = "having to save you";
     private static final String SEMIRAMIS_ITEM_NAME = "Semiramis AI";
     private static final double SEMIRAMIS_COOLDOWN_SECONDS = 100;
-    private static final int TITLE_DISPLAY_TICKS = 2 * 20;
+    private static final int TITLE_DISPLAY_TICKS = 26;
+
+    // This server embeds legacy formatting codes as literal characters in message text
+    // rather than as Style metadata, which breaks plain substring matching if left in.
+    private static final Pattern LEGACY_FORMATTING_CODE = Pattern.compile("(?i)§[0-9A-FK-OR]");
 
     public static void register() {
         ClientReceiveMessageEvents.ALLOW_GAME.register(SemiramisAIController::handleMessage);
         ClientTickEvents.END_CLIENT_TICK.register(client -> tick());
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
-            if (SemiramisAIState.cooldownEnabled) sendPhoeCommand();
-        });
     }
 
     private static boolean handleMessage(Component message, boolean overlay) {
         if (overlay || !SemiramisAIState.cooldownEnabled) return true;
 
-        String text = message.getString();
+        String text = LEGACY_FORMATTING_CODE.matcher(message.getString()).replaceAll("");
         if (!text.contains(SEMIRAMIS_PREFIX)) return true;
 
         if (text.toLowerCase().contains(HEAL_TRIGGER_PHRASE)) {

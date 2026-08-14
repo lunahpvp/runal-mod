@@ -1341,11 +1341,14 @@ public class RunalScreen extends Screen {
 
         for (int px = 0; px < squareW; px += 2) {
             float saturation = px / (float) Math.max(1, squareW - 1);
-            for (int py = 0; py < squareH; py += 2) {
-                float brightness = 1f - py / (float) Math.max(1, squareH - 1);
-                int rgb = java.awt.Color.HSBtoRGB(hsb[0], saturation, brightness);
-                context.fill(squareX + px, squareY + py, squareX + Math.min(squareW, px + 2), squareY + Math.min(squareH, py + 2), 0xFF000000 | (rgb & 0xFFFFFF));
-            }
+            int topRgb = java.awt.Color.HSBtoRGB(hsb[0], saturation, 1f);
+            int bottomRgb = java.awt.Color.HSBtoRGB(hsb[0], saturation, 0f);
+            context.fillGradient(
+                    squareX + px, squareY,
+                    squareX + Math.min(squareW, px + 2), squareY + squareH,
+                    0xFF000000 | (topRgb & 0xFFFFFF),
+                    0xFF000000 | (bottomRgb & 0xFFFFFF)
+            );
         }
 
         int pointerX = squareX + (int) (hsb[1] * squareW);

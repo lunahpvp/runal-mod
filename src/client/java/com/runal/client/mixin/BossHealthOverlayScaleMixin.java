@@ -23,17 +23,24 @@ public abstract class BossHealthOverlayScaleMixin {
     //?}
         BossBarScaleState state = BossBarScaleState.INSTANCE;
         float scale = state.scale;
-        runal$scaled = state.isEnabled() && Math.abs(scale - 1.0f) > 0.001f;
+        float offsetX = state.offsetX;
+        float offsetY = state.offsetY;
+
+        boolean hasScale = Math.abs(scale - 1.0f) > 0.001f;
+        boolean hasOffset = Math.abs(offsetX) > 0.001f || Math.abs(offsetY) > 0.001f;
+        runal$scaled = state.isEnabled() && (hasScale || hasOffset);
         if (!runal$scaled) return;
 
         float centerX = graphics.guiWidth() / 2.0f;
         //? if 1.21.4 {
         /*graphics.pose().pushPose();
+        graphics.pose().translate(offsetX, offsetY, 0.0f);
         graphics.pose().translate(centerX, 0.0f, 0.0f);
         graphics.pose().scale(scale, scale, 1.0f);
         graphics.pose().translate(-centerX, 0.0f, 0.0f);
         *///?} else {
         graphics.pose().pushMatrix();
+        graphics.pose().translate(offsetX, offsetY);
         graphics.pose().translate(centerX, 0.0f);
         graphics.pose().scale(scale, scale);
         graphics.pose().translate(-centerX, 0.0f);

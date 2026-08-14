@@ -68,6 +68,8 @@ public class ModuleConfig {
         props.setProperty("hud.semiramis_title.y", String.valueOf(SemiramisTitleState.y));
         props.setProperty("hud.boss_defeats.x", String.valueOf(BossDefeatState.x));
         props.setProperty("hud.boss_defeats.y", String.valueOf(BossDefeatState.y));
+        props.setProperty("hud.boss_bar.offset_x", String.valueOf(BossBarScaleState.INSTANCE.offsetX));
+        props.setProperty("hud.boss_bar.offset_y", String.valueOf(BossBarScaleState.INSTANCE.offsetY));
     }
 
     private static void loadHudPositions(Properties props) {
@@ -95,6 +97,18 @@ public class ModuleConfig {
         SemiramisTitleState.y = getInt(props, "hud.semiramis_title.y", SemiramisTitleState.y);
         BossDefeatState.x = getInt(props, "hud.boss_defeats.x", BossDefeatState.x);
         BossDefeatState.y = getInt(props, "hud.boss_defeats.y", BossDefeatState.y);
+        BossBarScaleState.INSTANCE.offsetX = getFloat(props, "hud.boss_bar.offset_x", BossBarScaleState.INSTANCE.offsetX);
+        BossBarScaleState.INSTANCE.offsetY = getFloat(props, "hud.boss_bar.offset_y", BossBarScaleState.INSTANCE.offsetY);
+    }
+
+    private static float getFloat(Properties props, String key, float fallback) {
+        String value = props.getProperty(key);
+        if (value == null) return fallback;
+        try {
+            return Float.parseFloat(value);
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
     }
 
     private static int getInt(Properties props, String key, int fallback) {

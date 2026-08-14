@@ -5,6 +5,8 @@ public final class BossBarScaleState {
 
     private boolean enabled;
     public float scale = 0.7f;
+    public float offsetX = 0f;
+    public float offsetY = 0f;
 
     private BossBarScaleState() {
     }

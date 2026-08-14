@@ -227,7 +227,7 @@ public final class NVGRenderer {
         nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
         color(color, NVG_COLOR);
         nvgFillColor(vg, NVG_COLOR);
-        nvgText(vg, x, y, text);
+        nvgText(vg, snap(x), snap(y), text);
     }
 
     public static void textCentered(String text, float boxX, float boxY, float boxW, float boxH, float size, int color) {
@@ -236,7 +236,7 @@ public final class NVGRenderer {
         nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
         color(color, NVG_COLOR);
         nvgFillColor(vg, NVG_COLOR);
-        nvgText(vg, boxX + boxW / 2f, boxY + boxH / 2f, text);
+        nvgText(vg, snap(boxX + boxW / 2f), snap(boxY + boxH / 2f), text);
     }
 
     public static void textLeft(String text, float x, float boxY, float boxH, float size, int color) {
@@ -245,7 +245,14 @@ public final class NVGRenderer {
         nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
         color(color, NVG_COLOR);
         nvgFillColor(vg, NVG_COLOR);
-        nvgText(vg, x, boxY + boxH / 2f, text);
+        nvgText(vg, snap(x), snap(boxY + boxH / 2f), text);
+    }
+
+    // Sub-pixel text positions cause NanoVG's antialiasing to blend each stroke of a
+    // glyph differently, making symmetric letters (like H) look lopsided. Snapping to
+    // whole pixels keeps strokes landing on the same pixel boundary consistently.
+    private static float snap(float value) {
+        return Math.round(value);
     }
 
     public static float textWidth(String text, float size) {

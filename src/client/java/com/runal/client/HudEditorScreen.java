@@ -10,6 +10,9 @@ import net.minecraft.network.chat.Component;
 
 public class HudEditorScreen extends Screen {
     private static final int GRID_SIZE = 8;
+    private static final int BOSS_BAR_PREVIEW_WIDTH = 182;
+    private static final int BOSS_BAR_PREVIEW_HEIGHT = 18;
+    private static final int BOSS_BAR_DEFAULT_Y = 12;
 
     private String dragging;
     private int dragOffsetX;
@@ -63,6 +66,12 @@ public class HudEditorScreen extends Screen {
         int bossTitleW = (int) (font.width(bossTitlePreview) * BossTitleState.scale);
         int bossTitleH = (int) (font.lineHeight * BossTitleState.scale);
         drawWidget(context, "Boss Title", BossTitleState.x - bossTitleW / 2, BossTitleState.y - bossTitleH / 2, bossTitleW, bossTitleH, 0xAA101216);
+
+        int bossBarW = (int) (BOSS_BAR_PREVIEW_WIDTH * BossBarScaleState.INSTANCE.scale);
+        int bossBarH = (int) (BOSS_BAR_PREVIEW_HEIGHT * BossBarScaleState.INSTANCE.scale);
+        int bossBarX = (int) (width / 2f + BossBarScaleState.INSTANCE.offsetX - bossBarW / 2f);
+        int bossBarY = (int) (BOSS_BAR_DEFAULT_Y + BossBarScaleState.INSTANCE.offsetY);
+        drawWidget(context, "Boss Bar", bossBarX, bossBarY, bossBarW, bossBarH, 0xAA101216);
 
         SemiramisTitleState.ensureDefaultPosition(width, height);
         String semiramisTitlePreview = SemiramisTitleState.currentText != null ? SemiramisTitleState.currentText : "Healed!";
@@ -140,6 +149,12 @@ public class HudEditorScreen extends Screen {
         int semiramisTitleW = (int) (font.width(semiramisTitlePreview) * SemiramisTitleState.scale);
         int semiramisTitleH = (int) (font.lineHeight * SemiramisTitleState.scale);
         if (inside(mouseX, mouseY, SemiramisTitleState.x - semiramisTitleW / 2, SemiramisTitleState.y - semiramisTitleH / 2, semiramisTitleW, semiramisTitleH)) return startDrag("semiramisTitle", mouseX, mouseY, SemiramisTitleState.x, SemiramisTitleState.y);
+
+        int bossBarW = (int) (BOSS_BAR_PREVIEW_WIDTH * BossBarScaleState.INSTANCE.scale);
+        int bossBarH = (int) (BOSS_BAR_PREVIEW_HEIGHT * BossBarScaleState.INSTANCE.scale);
+        int bossBarAnchorX = (int) (width / 2f + BossBarScaleState.INSTANCE.offsetX);
+        int bossBarAnchorY = (int) (BOSS_BAR_DEFAULT_Y + BossBarScaleState.INSTANCE.offsetY);
+        if (inside(mouseX, mouseY, bossBarAnchorX - bossBarW / 2, bossBarAnchorY, bossBarW, bossBarH)) return startDrag("bossBar", mouseX, mouseY, bossBarAnchorX, bossBarAnchorY);
 
         return false;
     }
@@ -229,6 +244,13 @@ public class HudEditorScreen extends Screen {
             int h = (int) (font.lineHeight * SemiramisTitleState.scale);
             int[] p = clamp(x - w / 2, y - h / 2, w, h);
             SemiramisTitleState.x = p[0] + w / 2; SemiramisTitleState.y = p[1] + h / 2;
+        }
+        if ("bossBar".equals(dragging)) {
+            int w = (int) (BOSS_BAR_PREVIEW_WIDTH * BossBarScaleState.INSTANCE.scale);
+            int h = (int) (BOSS_BAR_PREVIEW_HEIGHT * BossBarScaleState.INSTANCE.scale);
+            int[] p = clamp(x - w / 2, y, w, h);
+            BossBarScaleState.INSTANCE.offsetX = (p[0] + w / 2) - width / 2f;
+            BossBarScaleState.INSTANCE.offsetY = p[1] - BOSS_BAR_DEFAULT_Y;
         }
         if ("bossDefeats".equals(dragging)) {
             int[] p = clamp(x, y, 100, 16);

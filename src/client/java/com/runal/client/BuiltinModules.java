@@ -293,11 +293,12 @@ public class BuiltinModules {
             private final List<ModuleSetting> settings = List.of(
                     new ColorModuleSetting("Name Color", () -> ItemCooldownHudState.nameColor, v -> ItemCooldownHudState.nameColor = v),
                     new ColorModuleSetting("Value Color", () -> ItemCooldownHudState.valueColor, v -> ItemCooldownHudState.valueColor = v),
-                    new ToggleModuleSetting("Semiramis AI Cooldown", () -> SemiramisAIState.cooldownEnabled, v -> {
-                        SemiramisAIState.cooldownEnabled = v;
-                        if (v) SemiramisAIController.sendPhoeCommand();
-                    }),
+                    new ToggleModuleSetting("Semiramis AI Cooldown", () -> SemiramisAIState.cooldownEnabled, v -> SemiramisAIState.cooldownEnabled = v),
                     new ToggleModuleSetting("Semiramis Messages", () -> SemiramisAIState.showMessages, v -> SemiramisAIState.showMessages = v),
+                    new ToggleModuleSetting("Phoenix Wrath", () -> PhoenixWrathState.enabled, v -> {
+                        PhoenixWrathState.enabled = v;
+                        SemiramisAIController.sendPhoeCommand();
+                    }),
                     new KeybindModuleSetting(RunalKeybinds.weaponCooldown())
             );
             public String getName() { return "Weapon Cooldown"; }
@@ -387,7 +388,7 @@ public class BuiltinModules {
                     new SliderModuleSetting("Scale", 0.25f, 3.0f, 0.05f, () -> BossBarScaleState.INSTANCE.scale, v -> BossBarScaleState.INSTANCE.scale = v),
                     new KeybindModuleSetting(RunalKeybinds.bossBarScale())
             );
-            public String getName() { return "Boss Bar Scale"; }
+            public String getName() { return "Boss Bar Editor"; }
             public String getDescription() { return "Changes the size of boss bars without hiding their information."; }
             public String getCategory() { return "Visual"; }
             public boolean isEnabled() { return BossBarScaleState.INSTANCE.isEnabled(); }
