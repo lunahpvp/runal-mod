@@ -23,7 +23,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class UpdateChecker {
     private static final String LATEST_VERSION_URL = "https://runal-presence.lake-cockroach.workers.dev/latest-version";
-    private static final String RELEASES_URL = "https://github.com/lunahpvp/runal-mod/releases/latest";
+    private static final String RELEASES_URL = "https://www.curseforge.com/minecraft/mc-mods/runal";
     private static final Logger LOGGER = LoggerFactory.getLogger("RunalUpdateChecker");
 
     private static final HttpClient CLIENT = HttpClient.newBuilder()
