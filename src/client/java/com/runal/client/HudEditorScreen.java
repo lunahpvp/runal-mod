@@ -64,6 +64,12 @@ public class HudEditorScreen extends Screen {
         int bossTitleH = (int) (font.lineHeight * BossTitleState.scale);
         drawWidget(context, "Boss Title", BossTitleState.x - bossTitleW / 2, BossTitleState.y - bossTitleH / 2, bossTitleW, bossTitleH, 0xAA101216);
 
+        SemiramisTitleState.ensureDefaultPosition(width, height);
+        String semiramisTitlePreview = SemiramisTitleState.currentText != null ? SemiramisTitleState.currentText : "Healed!";
+        int semiramisTitleW = (int) (font.width(semiramisTitlePreview) * SemiramisTitleState.scale);
+        int semiramisTitleH = (int) (font.lineHeight * SemiramisTitleState.scale);
+        drawWidget(context, "Semiramis Title", SemiramisTitleState.x - semiramisTitleW / 2, SemiramisTitleState.y - semiramisTitleH / 2, semiramisTitleW, semiramisTitleH, 0xAA101216);
+
         UtilityHudRenderer.renderPreview(context);
     }
 
@@ -128,6 +134,12 @@ public class HudEditorScreen extends Screen {
         int bossTitleW = (int) (font.width(bossTitlePreview) * BossTitleState.scale);
         int bossTitleH = (int) (font.lineHeight * BossTitleState.scale);
         if (inside(mouseX, mouseY, BossTitleState.x - bossTitleW / 2, BossTitleState.y - bossTitleH / 2, bossTitleW, bossTitleH)) return startDrag("bossTitle", mouseX, mouseY, BossTitleState.x, BossTitleState.y);
+
+        SemiramisTitleState.ensureDefaultPosition(width, height);
+        String semiramisTitlePreview = SemiramisTitleState.currentText != null ? SemiramisTitleState.currentText : "Healed!";
+        int semiramisTitleW = (int) (font.width(semiramisTitlePreview) * SemiramisTitleState.scale);
+        int semiramisTitleH = (int) (font.lineHeight * SemiramisTitleState.scale);
+        if (inside(mouseX, mouseY, SemiramisTitleState.x - semiramisTitleW / 2, SemiramisTitleState.y - semiramisTitleH / 2, semiramisTitleW, semiramisTitleH)) return startDrag("semiramisTitle", mouseX, mouseY, SemiramisTitleState.x, SemiramisTitleState.y);
 
         return false;
     }
@@ -210,6 +222,13 @@ public class HudEditorScreen extends Screen {
             int h = (int) (font.lineHeight * BossTitleState.scale);
             int[] p = clamp(x - w / 2, y - h / 2, w, h);
             BossTitleState.x = p[0] + w / 2; BossTitleState.y = p[1] + h / 2;
+        }
+        if ("semiramisTitle".equals(dragging)) {
+            String preview = SemiramisTitleState.currentText != null ? SemiramisTitleState.currentText : "Healed!";
+            int w = (int) (font.width(preview) * SemiramisTitleState.scale);
+            int h = (int) (font.lineHeight * SemiramisTitleState.scale);
+            int[] p = clamp(x - w / 2, y - h / 2, w, h);
+            SemiramisTitleState.x = p[0] + w / 2; SemiramisTitleState.y = p[1] + h / 2;
         }
         if ("bossDefeats".equals(dragging)) {
             int[] p = clamp(x, y, 100, 16);

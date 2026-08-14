@@ -39,10 +39,6 @@ public class AccessoryCooldownController {
         ABILITIES.put("Conqueror of Magic", new AbilityInfo("Crown of Elements", 50));
     }
 
-    private static final String SEMIRAMIS_TRIGGER = "Semiramis AI";
-    private static final String SEMIRAMIS_ITEM_NAME = "Semiramis AI";
-    private static final double SEMIRAMIS_COOLDOWN_SECONDS = 100;
-
     public static void register() {
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
             if (overlay) return;
@@ -58,10 +54,6 @@ public class AccessoryCooldownController {
                 AbilityInfo info = entry.getValue();
                 AccessoryCooldownState.start(info.itemName(), info.cooldownSeconds());
             }
-        }
-
-        if (text.contains(SEMIRAMIS_TRIGGER)) {
-            AccessoryCooldownState.start(SEMIRAMIS_ITEM_NAME, SEMIRAMIS_COOLDOWN_SECONDS);
         }
     }
 }

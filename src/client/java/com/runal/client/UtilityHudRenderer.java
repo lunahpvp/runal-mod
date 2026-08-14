@@ -98,6 +98,11 @@ public class UtilityHudRenderer {
         if (BossDefeatState.enabled && BossTitleState.isFightingBoss()) {
             drawBossDefeatCounter(graphics, mc);
         }
+
+        if (SemiramisAIState.cooldownEnabled && SemiramisTitleState.currentText != null) {
+            SemiramisTitleState.ensureDefaultPosition(mc.getWindow().getGuiScaledWidth(), mc.getWindow().getGuiScaledHeight());
+            drawSemiramisTitle(graphics, mc);
+        }
     }
 
     public static final float WARNING_TITLE_SCALE = 2.5f;
@@ -118,6 +123,20 @@ public class UtilityHudRenderer {
                 BossTitleState.y - textHeight / 2,
                 size,
                 BossTitleState.textColor
+        );
+    }
+
+    private static void drawSemiramisTitle(net.minecraft.client.gui.GuiGraphicsExtractor graphics, Minecraft mc) {
+        int size = Math.max(UTILITY_FONT_SIZE, Math.round(mc.font.lineHeight * SemiramisTitleState.scale));
+        int textWidth = PortableTextRenderer.width(SemiramisTitleState.currentText, size);
+        int textHeight = PortableTextRenderer.height(SemiramisTitleState.currentText, size);
+        PortableTextRenderer.draw(
+                graphics,
+                SemiramisTitleState.currentText,
+                SemiramisTitleState.x - textWidth / 2,
+                SemiramisTitleState.y - textHeight / 2,
+                size,
+                SemiramisTitleState.textColor
         );
     }
 
