@@ -98,7 +98,7 @@ public class HealthBarRenderer {
     private static void drawBar(net.minecraft.client.gui.GuiGraphicsExtractor graphics, Minecraft mc, int x, int y, LocalPlayer player, HealthBarState state, int barColor) {
         int left = x - state.width / 2;
         int top = y - state.height / 2;
-        int fillWidth = (int) (state.width * displayedPercent);
+        int fillWidth = Math.round(state.width * displayedPercent);
         graphics.fill(left - 1, top - 1, left + state.width + 1, top + state.height + 1, state.borderColor);
         graphics.fill(left, top, left + state.width, top + state.height, state.backgroundColor);
         if (fillWidth > 0) graphics.fill(left, top, left + fillWidth, top + state.height, barColor);
@@ -109,7 +109,7 @@ public class HealthBarRenderer {
         int size = Math.max(10, state.height + 6);
         int left = x - state.width / 2;
         int top = y - size / 2;
-        int fillWidth = (int) (state.width * displayedPercent);
+        int fillWidth = Math.round(state.width * displayedPercent);
         graphics.fill(left - 1, top - 1, left + state.width + 1, top + size + 1, state.borderColor);
         graphics.fill(left, top, left + state.width, top + size, state.backgroundColor);
         if (fillWidth > 0) graphics.fill(left, top, left + fillWidth, top + size, barColor);
@@ -153,8 +153,9 @@ public class HealthBarRenderer {
     }
 
     private static String formatHealth(float health, float maxHealth, HealthBarState state) {
-        int hp = Mth.ceil(health);
-        int max = Mth.ceil(maxHealth);
+        // Shown as hearts (out of 10) to match vanilla's heart display, not raw HP (out of 20).
+        int hp = Mth.ceil(health / 2f);
+        int max = Mth.ceil(maxHealth / 2f);
         if ("Percent".equals(state.healthFormat)) return Math.round((health / maxHealth) * 100f) + "%";
         if (state.showMaxHealth) return hp + "/" + max;
         return String.valueOf(hp);

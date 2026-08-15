@@ -42,7 +42,7 @@ public final class RunalClient implements ClientModInitializer {
     }
 
     private static void savePersistentState() {
-        ModuleConfig.save();
+        ModuleConfig.saveSync();
         TeamTrackerState.INSTANCE.save();
         WaypointManagerState.INSTANCE.save();
     }

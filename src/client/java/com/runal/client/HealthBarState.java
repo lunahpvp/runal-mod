@@ -23,7 +23,7 @@ public class HealthBarState {
     public int borderColor = 0xCC000000;
     public float midHpThreshold = 0.50f;
     public float lowHpThreshold = 0.30f;
-    public int width = 60;
+    public int width = 66;
     public int height = 8;
 
     private HealthBarState() {}

@@ -31,6 +31,19 @@ public class ModuleConfig {
         thread.start();
     }
 
+    // Blocks until the write actually finishes, unlike save() which just kicks off a
+    // background thread and returns immediately. Used on shutdown - a fire and forget
+    // background write can get cut off before the JVM actually exits, which is what was
+    // silently losing recent setting changes (hotbar swap rows included) on some closes.
+    public static void saveSync() {
+        Properties props = collectProperties();
+        try (OutputStream out = Files.newOutputStream(getConfigPath())) {
+            props.store(out, "Runal module states and settings");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private static Properties collectProperties() {
         Properties props = new Properties();
         for (Module module : ModuleManager.getModules()) {
@@ -39,8 +52,22 @@ public class ModuleConfig {
             saveSettings(props, moduleKey, module.getSettings());
         }
         saveHudPositions(props);
+        saveHotbarSwap(props);
         props.setProperty("runalchat.ignored", RunalChatIgnoreState.serialize());
         return props;
+    }
+
+    private static void saveHotbarSwap(Properties props) {
+        for (int i = 0; i < HotbarSwapState.SLOT_COUNT; i++) {
+            props.setProperty("hotbar_swap.row." + i, HotbarSwapState.INSTANCE.rows[i]);
+        }
+    }
+
+    private static void loadHotbarSwap(Properties props) {
+        for (int i = 0; i < HotbarSwapState.SLOT_COUNT; i++) {
+            String saved = props.getProperty("hotbar_swap.row." + i);
+            if (saved != null) HotbarSwapState.INSTANCE.rows[i] = saved;
+        }
     }
 
     private static void saveHudPositions(Properties props) {
@@ -165,6 +192,7 @@ public class ModuleConfig {
         }
         migrateTrackingStyleDefaults();
         loadHudPositions(props);
+        loadHotbarSwap(props);
         RunalChatIgnoreState.deserialize(props.getProperty("runalchat.ignored"));
     }
 
