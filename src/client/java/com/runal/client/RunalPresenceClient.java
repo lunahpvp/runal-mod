@@ -117,6 +117,49 @@ public final class RunalPresenceClient {
         return true;
     }
 
+    public static boolean sendBossKill(String boss) {
+        WebSocket current = socket;
+        if (current == null) return false;
+
+        JsonObject message = new JsonObject();
+        message.addProperty("action", "boss_kill");
+        message.addProperty("boss", boss);
+        current.sendText(message.toString(), true);
+        return true;
+    }
+
+    public static boolean sendItemDrop(String rarity, String boss) {
+        WebSocket current = socket;
+        if (current == null) return false;
+
+        JsonObject message = new JsonObject();
+        message.addProperty("action", "item_drop");
+        message.addProperty("rarity", rarity);
+        if (boss != null) message.addProperty("boss", boss);
+        current.sendText(message.toString(), true);
+        return true;
+    }
+
+    public static boolean sendRaidDeath() {
+        WebSocket current = socket;
+        if (current == null) return false;
+
+        JsonObject message = new JsonObject();
+        message.addProperty("action", "raid_death");
+        current.sendText(message.toString(), true);
+        return true;
+    }
+
+    public static boolean sendScrollFound() {
+        WebSocket current = socket;
+        if (current == null) return false;
+
+        JsonObject message = new JsonObject();
+        message.addProperty("action", "scroll_found");
+        current.sendText(message.toString(), true);
+        return true;
+    }
+
     public static boolean isActiveUser(UUID uuid, String name) {
         Minecraft client = Minecraft.getInstance();
         if (client.player != null) {
@@ -205,6 +248,9 @@ public final class RunalPresenceClient {
                 response.addProperty("version", currentVersion());
                 response.addProperty("server", DiscordPresenceController.detectedServer());
                 response.addProperty("color", RunalChatState.chatColor);
+                // This server repurposes vanilla's XP level number (shown above the hotbar) as
+                // the player's RPG level, so no chat parsing is needed to read it.
+                response.addProperty("level", client.player != null ? client.player.experienceLevel : 0);
                 webSocket.sendText(response.toString(), true);
             } catch (Exception error) {
                 LOGGER.warn("Could not authenticate Runal presence: {}", error.getMessage());

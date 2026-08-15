@@ -17,6 +17,11 @@ public class BossDefeatState {
     public static int nameColor = 0xFF7CFFB2;
     public static int valueColor = 0xFFFFFFFF;
 
+    // Used by ItemDropController to attribute a drop to whichever boss was killed just before
+    // it - not persisted, this only matters for the few seconds after a kill.
+    public static String lastKilledBossName;
+    public static long lastKilledAtMs;
+
     private static final Map<String, Integer> defeatCounts = new LinkedHashMap<>();
 
     public static int getCount(String bossName) {

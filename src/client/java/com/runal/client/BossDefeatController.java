@@ -26,7 +26,11 @@ public class BossDefeatController {
         }
         if (!matched) return;
 
-        BossDefeatState.increment(matcher.group(1).trim());
+        String bossName = matcher.group(1).trim();
+        BossDefeatState.increment(bossName);
+        BossDefeatState.lastKilledBossName = bossName;
+        BossDefeatState.lastKilledAtMs = System.currentTimeMillis();
+        RunalPresenceClient.sendBossKill(bossName);
     }
 
     private static String stripDecoration(String text) {

@@ -1,5 +1,4 @@
-// One-time (or re-run when commands change) registration of Runal's Discord slash
-l
+// One-time (or re-run when commands change) registration of Runal's Discord slash commands.
 //
 // Usage (PowerShell):
 //   $env:DISCORD_BOT_TOKEN = "paste-your-token-here"
@@ -24,6 +23,36 @@ const globalCommands = [
     type: 1,
     integration_types: [0, 1], // GUILD_INSTALL + USER_INSTALL
     contexts: [0, 1, 2] // guild channels, bot DMs, group/private channels
+  },
+  {
+    name: "bosses",
+    description: "View a users boss kills and drops",
+    type: 1,
+    integration_types: [0, 1], // GUILD_INSTALL + USER_INSTALL
+    contexts: [0, 1, 2], // guild channels, bot DMs, group/private channels
+    options: [
+      {
+        name: "player",
+        description: "Minecraft username or UUID",
+        type: 3, // STRING
+        required: true
+      }
+    ]
+  },
+  {
+    name: "general",
+    description: "get a users generalized statistics.",
+    type: 1,
+    integration_types: [0, 1], // GUILD_INSTALL + USER_INSTALL
+    contexts: [0, 1, 2], // guild channels, bot DMs, group/private channels
+    options: [
+      {
+        name: "player",
+        description: "Minecraft username or UUID",
+        type: 3, // STRING
+        required: true
+      }
+    ]
   }
 ];
 

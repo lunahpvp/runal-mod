@@ -36,7 +36,29 @@ public class BossTitleController {
 
     // With the "[BOSS]" tag present any name is accepted; without it, only known names count.
     private static final String[] MAGE_RPG_BOSS_NAMES = {
+            // Plains
+            "Alpha Wolf",
+            "Shade",
+            "Elemental Sheep",
+            "Fallen Minerian",
+            // Desert
+            "The Shatterer",
+            "Angel of Death",
+            "Duselation",
+            "Bronze Guardian",
+            "Zerion",
+            "Servant",
+            "The Pharaoh",
+            // Lower Sky
+            "Quartz King",
+            "Angel of Storms",
             "Delta",
+            // Upper Sky
+            "Zerathis",
+            "Pyros",
+            "Zephyr, Commander of the Skies",
+            "Skylord",
+            "Acryl",
     };
 
     private static final Pattern SCEPTER_BOSS_LINE_PATTERN = buildScepterPattern();
